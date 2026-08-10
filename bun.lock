@@ -1,0 +1,30 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "kivo",
+      "dependencies": {
+        "openai": "^7.4.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+  },
+  "packages": {
+    "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@types/node": ["@types/node@26.2.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg=="],
+
+    "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "openai": ["openai@7.4.0", "", { "peerDependencies": { "@aws-sdk/credential-provider-node": ">=3.972.0 <4", "@smithy/hash-node": ">=4.3.0 <5", "@smithy/signature-v4": ">=5.4.0 <6", "ws": "^8.18.0", "zod": "^3.25 || ^4.0" }, "optionalPeers": ["@aws-sdk/credential-provider-node", "@smithy/hash-node", "@smithy/signature-v4", "ws", "zod"] }, "sha512-+C9Muit5x8j9R8ej8ZzVgKcrVDtqFqTy9gxFdov0EItLgU68zrJtF9ZeT0cyqJQW9S3PCJkdFgADtRGquRBtew=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
+  }
+}

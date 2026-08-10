@@ -1,0 +1,19 @@
+{
+  "name": "kivo",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "agent": "",
+    "eval": ""
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "openai": "^7.4.0"
+  }
+}
