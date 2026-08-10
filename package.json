@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "agent": "",
-    "eval": ""
+    "agent": "bun run src/cli/index.ts",
+    "eval": "bun run evals/runner.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
