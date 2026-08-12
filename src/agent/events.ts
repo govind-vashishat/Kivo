@@ -1,3 +1,4 @@
+//Event types -
 export type AgentEvent =
     | { type: "text_delta"; text: string }
     | { type: "tool_start"; name: string  }
