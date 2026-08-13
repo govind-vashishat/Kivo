@@ -57,3 +57,45 @@ export const toolDefinitions = [
 ];
 
 export type ToolName = "read_file" | "write_file" | "edit_file" | "run_bash";
+
+//Tool executor - 
+export async function executeTool(
+    name: ToolName,
+    input: any,
+    cwd: string
+) {
+    try {
+        switch (name) {
+            case "read_file": {
+                const path = resolve(cwd, input.path);
+                const content = await Bun.file(path).text();
+                return { output: content, isError: false };
+            }
+
+            case "write_file": {
+                const path = resolve(cwd, input.path);
+                await Bun.write(path, input.content);
+                return { output: `Wrote ${input.path}`, isError: false };
+            }
+
+            case "edit_file": {
+                const path = resolve(cwd, input.path);
+                const original = await Bun.file(path).text();
+
+                const count = original.split(input.old_text).length - 1;
+                if (count === 0)
+                    return { output: `old_text not found in ${input.path}`, isError: true }
+                if (count > 1)
+                    return { output: `old_text matches ${count} times — must be unique. Add surrounding context.`, isError: true }
+
+                const updated = original.replace(input.old_text, input.new_text);
+                await Bun.write(path, updated);
+                return { output: `Edited ${input.path}`, isError: false }
+            }
+        };
+    } catch (err: any) {
+        
+    }
+};
+
+import { resolve } from "node:path";
