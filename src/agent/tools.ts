@@ -1,3 +1,6 @@
+import { $ } from "bun";
+import { resolve } from "node:path";
+
 //Tool schemas -
 export const toolDefinitions = [
     {
@@ -92,10 +95,25 @@ export async function executeTool(
                 await Bun.write(path, updated);
                 return { output: `Edited ${input.path}`, isError: false }
             }
+
+            case "run_bash": {
+                const result = await $`${{ raw: input.command }}`
+                    .cwd(cwd)
+                    .nothrow()
+                    .quiet();
+
+                const out = result.stdout.toString();
+                const err = result.stderr.toString();
+                const body = `stdout:\n${out}\stderr:\n${err}\n(exit code ${result.exitCode})`;
+
+                return { output: body, isError: result.exitCode !== 0 };
+            }
+
+            default: {
+                return { output: `Unknown tool: ${name}`, isError: true };
+            }
         };
     } catch (err: any) {
-        
+        return { output: String(err?.message ?? err), isError: true }
     }
 };
-
-import { resolve } from "node:path";
