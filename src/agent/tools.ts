@@ -104,7 +104,7 @@ export async function executeTool(
 
                 const out = result.stdout.toString();
                 const err = result.stderr.toString();
-                const body = `stdout:\n${out}\stderr:\n${err}\n(exit code ${result.exitCode})`;
+                const body = `stdout:\n${out}\nstderr:\n${err}\n(exit code ${result.exitCode})`;
 
                 return { output: body, isError: result.exitCode !== 0 };
             }
