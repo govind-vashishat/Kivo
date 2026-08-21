@@ -14,6 +14,7 @@ export const toolDefinitions = [
             },
             required: ["path"],
         },
+        strict: true,
     },
     {
         type: "function" as const,
@@ -28,6 +29,7 @@ export const toolDefinitions = [
             },
             required: ["path", "content"],
         },
+        strict: true,
     },
     {
         type: "function" as const,
@@ -43,6 +45,7 @@ export const toolDefinitions = [
             },
             required: ["path", "old_text", "new_text"],
         },
+        strict: true,
     },
     {
         type: "function" as const,
@@ -56,6 +59,7 @@ export const toolDefinitions = [
             },
             required: ["command"],
         },
+        strict: true,
     },
 ];
 
