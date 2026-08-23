@@ -48,7 +48,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         for (const call of calls as any) {
             const args = JSON.parse(call.arguments);
 
-            emit({ type: "tool_start", name: call.name });
+            emit({ type: "tool_start", name: call.name, input: args, id: call.call_id });
             const { output, isError } = await executeTool(call.name as ToolName, args, cwd);
             emit({ type: "tool_result", id: call.call_id, output: output, isError: isError });
 
