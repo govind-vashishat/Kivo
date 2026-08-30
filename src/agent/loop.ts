@@ -27,6 +27,8 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     context.addUserMessage(task);
 
     for (let step = 0; step < maxSteps; step++ ) {
+        console.log(`\n===== ROUND ${step + 1} =====`);
+
         const response = await client.responses.create({
             model: model,
             instructions: SYSTEM_PROMPT,
@@ -43,6 +45,11 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         const calls = response.output.filter(
             (item: any) => item.type === "function_call"
         );
+
+        if(calls.length === 0) {
+            emit({ type: "turn_end", stopReason: "completed" });
+            return { stopReason: "completed", steps: step + 1 };
+        };
 
         const toolOutputs: any[] = [];
         for (const call of calls as any) {
