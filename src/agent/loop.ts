@@ -37,7 +37,6 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         });
 
         context.addModelOutput(response.output as any);
-
         if(response.output_text) {
             emit({ type: "text_delta", text: response.output_text });
         };

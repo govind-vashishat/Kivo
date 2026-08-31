@@ -3,6 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "kivo": "src/cli/index.ts"
+  },
   "scripts": {
     "agent": "bun run src/cli/index.ts",
     "eval": "bun run evals/runner.ts"

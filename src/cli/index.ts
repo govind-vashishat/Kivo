@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { runAgent } from "../agent/loop";
 
 const task = process.argv.slice(2).join(" ");
