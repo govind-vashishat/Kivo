@@ -1,0 +1,6 @@
+{
+    "id": "01-syntax-error",
+    "prompt": "math.js has a syntax error and won't run. Fix it so that `node test.js` passes.",
+    "verifyCommand": "",
+    "maxSteps": 8
+}
