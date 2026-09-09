@@ -1,0 +1,6 @@
+{
+    "id": "02-failing-test",
+    "prompt": "",
+    "verifyCommand": "node test.js",
+    "maxSteps": 10
+}
