@@ -1,0 +1,6 @@
+{
+    "id": "03-multi-file",
+    "prompt": "Running `node test.js` fails. The checkout function returns wrong prices. Find and fix the bug so the tests pass.",
+    "verifyCommand": "node test.js",
+    "maxSteps": 12
+}
