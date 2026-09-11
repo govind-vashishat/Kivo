@@ -27,7 +27,6 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     context.addUserMessage(task);
 
     for (let step = 0; step < maxSteps; step++ ) {
-        console.log(`\n===== ROUND ${step + 1} =====`);
 
         const response = await client.responses.create({
             model: model,
@@ -67,5 +66,5 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         context.addToolOutput(toolOutputs);
     };
     emit({ type: "turn_end", stopReason: "max_steps" });
-    return { stopReason: "completed", steps: maxSteps };
+    return { stopReason: "max_steps", steps: maxSteps };
 };
