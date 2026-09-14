@@ -2,5 +2,5 @@
     "id": "02-failing-test",
     "prompt": "The tests in test.js are failing. Find and fix the bug in stats.js so `node test.js` passes.",
     "verifyCommand": "node test.js",
-    "maxSteps": 10
+    "maxSteps": 15
 }
