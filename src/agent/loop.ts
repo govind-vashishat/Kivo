@@ -9,6 +9,7 @@ export interface RunOptions {
     maxSteps?: number;
     model?: string;
     onEvent?: AgentEventListener;
+    context?: ContextManager;
 }; 
 
 export interface RunResult {
@@ -23,7 +24,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     const emit = (e: AgentEvent) => onEvent?.(e);
 
     const client = new OpenAI();
-    const context = new ContextManager();
+    const context = opts.context ?? new ContextManager();
     context.addUserMessage(task);
 
     for (let step = 0; step < maxSteps; step++ ) {
