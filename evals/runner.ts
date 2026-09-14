@@ -68,3 +68,34 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
         durationMs: Date.now() - start,
     };
 }
+
+async function main() {
+    const entries = await readdir(SANDBOX_DIR, { withFileTypes: true });
+    const sandboxes = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+
+    const records: EvalRecord[] = [];
+    for (const name of sandboxes) {
+        process.stdout.write(`Running ${name}... `);
+        const record = await runOneTask(name);
+        console.log(
+            `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, ${record.stopReason}, ${record.durationMs}ms)`
+        );
+        records.push(record);
+    };
+
+    const passed = records.filter((r) => r.pass).length;
+    console.log(`\nAccuracy: ${passed}/${records.length} (${((passed / records.length) * 100).toFixed(0)}%)`);
+
+    let history: EvalRecord[] = [];
+    try {
+        history = JSON.parse(await readFile(HISTORY_FILE, "utf-8"));
+    } catch {
+        
+    }
+    await writeFile(HISTORY_FILE, JSON.stringify([...history, ...records], null, 2));
+}
+
+main().catch((err) => {
+    console.error("runner crashed:", err);
+    process.exit(1);
+})
