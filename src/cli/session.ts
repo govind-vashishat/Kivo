@@ -2,7 +2,7 @@ import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { ContextManager } from "../agent/context";
 import { runAgent } from "../agent/loop";
-import { renderEvent } from "./render";
+import { renderEvent, rule, c } from "./render";
 
 const BANNER = `
 \x1b[36m
@@ -29,6 +29,7 @@ const HELP = ` Commands:
 
 export async function startSession() {
     console.log(BANNER);
+    console.log(rule("─"));
 
     const r1 = readline.createInterface({ input: stdin, output: stdout });
 
@@ -36,11 +37,11 @@ export async function startSession() {
     let context = new ContextManager();
 
     while(true) {
-        const line = (await r1.question("\n\x1b[35mkivo ›\x1b[0m ")).trim();
+        const line = (await r1.question(`\n${c.prompt}kivo ›${c.reset} `)).trim();
         if(!line) continue;
 
         if(line === "/exit" || line === "/quit") {
-            console.log("bye 👋");
+            console.log(`${c.dim}bye 👋${c.reset}`);
             break;
         }
 
@@ -51,7 +52,7 @@ export async function startSession() {
 
         if(line === "/clear") {
             context = new ContextManager();
-            console.log(" \x1b[90m(conversation cleared)\x1b[0m");
+            console.log(` ${c.dim}(conversation cleared)${c.reset}`);
             continue;
         }
 
@@ -63,7 +64,7 @@ export async function startSession() {
                 onEvent: renderEvent,
             })
         } catch (err) {
-            console.error(`\n\x1b[31m[error]\x1b[0m`, err);
+            console.error(`\n${c.red}[error]${c.reset}`, err);
         }
     }
     r1.close();
