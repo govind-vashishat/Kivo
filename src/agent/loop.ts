@@ -28,13 +28,20 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     context.addUserMessage(task);
 
     for (let step = 0; step < maxSteps; step++ ) {
+        if (process.env.DEBUG) console.log(`\n===== ROUND ${step + 1} =====`);
 
-        const response = await client.responses.create({
-            model: model,
-            instructions: SYSTEM_PROMPT,
-            input: context.getItems(),
-            tools: toolDefinitions,
-        });
+        emit({ type: "thinking_start" });
+        let response;
+        try {
+            response = await client.responses.create({
+                model,
+                instructions: SYSTEM_PROMPT,
+                input: context.getItems(),
+                tools: toolDefinitions,
+            });
+        } finally {
+            emit({ type: "thinking_end" });
+        }
 
         context.addModelOutput(response.output as any);
         if(response.output_text) {

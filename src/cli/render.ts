@@ -16,9 +16,30 @@ export function rule(char = "-"): string {
     return `${c.navy}${char.repeat(width)}${c.reset}`
 }
 
+let stopSpinner: (() => void) | null = null;
+
+export function startSpinner(label = "thinking"): () => void {
+    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let i = 0;
+    const timer = setInterval(() => {
+        process.stdout.write(`\r${c.navy}${frames[i++ % frames.length]}${c.reset} ${c.dim}${label}…${c.reset}`);
+    }, 80);
+    return () => {
+        clearInterval(timer);
+        process.stdout.write("\r\x1b[K");
+    }
+}
+
 //shared renderer - both for one shot tasks and interactive sessions - 
 export function renderEvent(e: AgentEvent) {
     switch (e.type) {
+        case "thinking_start":
+            stopSpinner = startSpinner();
+            break;
+        case "thinking_end":
+            stopSpinner?.();
+            stopSpinner = null;
+            break;
         case "text_delta":
             console.log(`\n${e.text}`);
             break;
@@ -33,7 +54,7 @@ export function renderEvent(e: AgentEvent) {
             );
             break;
         case "turn_end":
-            // close the task visually with a thin rule
+            // close the task with a thin rule
             console.log(`\n${rule("─")}`);
             break;
         case "error":

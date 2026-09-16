@@ -5,5 +5,7 @@ export type AgentEvent =
     | { type: "tool_result"; id: string; output: string; isError: boolean }
     | { type: "turn_end"; stopReason: string }
     | { type: "error"; message: string }
+    | { type: "thinking_start" }
+    | { type: "thinking_end" }
 
 export type AgentEventListener = (event: AgentEvent) => void;
