@@ -30,6 +30,23 @@ export function startSpinner(label = "thinking"): () => void {
     }
 }
 
+export function describeError(err: any): string {
+    const status = err?.status;
+    if (status === 401) return "OpenAI rejected the API key (401). Check OPENAI_API_KEY.";
+    if (status === 429) return "Rate limited or out of quota (429). Check your OpenAI billing.";
+    if (status === 404) return "Model not found (404). Your key may not have access to this model.";
+    if (status >= 500) return `OpenAI server error ${status}. Try again in a moment`;
+    if (err?.code === "ENOTFOUND" || err?.code === "ECONNREFUSED")
+        return "Network error — could not reach the OpenAI API.";
+    return err?.message || String(err);
+}
+
+export function fatal(message: string, hint?: string): never {
+    console.error(`\n ${c.red}kivo:${c.reset} ${message}`);
+    if (hint) console.error(`\n ${c.red}kivo:${c.reset} ${message}`);
+    process.exit(1);
+}
+
 //shared renderer - both for one shot tasks and interactive sessions - 
 export function renderEvent(e: AgentEvent) {
     switch (e.type) {
