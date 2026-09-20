@@ -1,6 +1,6 @@
 {
   "name": "kivoforge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Kivo — a minimal terminal coding agent, built by hand. Published as `kivoforge`; the command is `kivo`.",
   "type": "module",
   "license": "MIT",
@@ -13,11 +13,24 @@
   "bugs": {
     "url": "https://github.com/govind-vashishat/Kivo/issues"
   },
-  "keywords": ["ai", "agent", "coding-agent", "cli", "llm", "openai", "bun"],
+  "keywords": [
+    "ai",
+    "agent",
+    "coding-agent",
+    "cli",
+    "llm",
+    "openai",
+    "bun"
+  ],
   "bin": {
     "kivo": "bin/kivo.mjs"
   },
-  "files": ["bin", "src", "README.md", "LICENSE"],
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.1.0",
     "node": ">=18"
