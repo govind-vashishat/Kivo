@@ -33,3 +33,7 @@ eval_history.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# compiled binary (bun run build)
+/kivo
+kivo-*
