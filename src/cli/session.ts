@@ -2,7 +2,7 @@ import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { ContextManager } from "../agent/context";
 import { runAgent } from "../agent/loop";
-import { renderEvent, rule, c } from "./render";
+import { renderEvent, rule, c, describeError } from "./render";
 
 const BANNER = `
 \x1b[36m
@@ -64,7 +64,7 @@ export async function startSession() {
                 onEvent: renderEvent,
             })
         } catch (err) {
-            console.error(`\n${c.red}[error]${c.reset}`, err);
+            console.error(`\n ${c.red}[error]${c.reset} ${describeError(err)}`);
         }
     }
     r1.close();
