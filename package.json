@@ -1,14 +1,32 @@
 {
-  "name": "kivo",
-  "module": "index.ts",
+  "name": "kivoforge",
+  "version": "0.1.0",
+  "description": "Kivo — a minimal terminal coding agent, built by hand. Published as `kivoforge`; the command is `kivo`.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "author": "Govind Vashishat",
+  "homepage": "https://github.com/govind-vashishat/Kivo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/govind-vashishat/Kivo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/govind-vashishat/Kivo/issues"
+  },
+  "keywords": ["ai", "agent", "coding-agent", "cli", "llm", "openai", "bun"],
   "bin": {
-    "kivo": "src/cli/index.ts"
+    "kivo": "bin/kivo.mjs"
+  },
+  "files": ["bin", "src", "README.md", "LICENSE"],
+  "engines": {
+    "bun": ">=1.1.0",
+    "node": ">=18"
   },
   "scripts": {
     "agent": "bun run src/cli/index.ts",
-    "eval": "bun run evals/runner.ts"
+    "eval": "bun run evals/runner.ts",
+    "build": "bun build --compile src/cli/index.ts --outfile kivo",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest",
