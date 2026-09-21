@@ -43,7 +43,7 @@ export function describeError(err: any): string {
 
 export function fatal(message: string, hint?: string): never {
     console.error(`\n ${c.red}kivo:${c.reset} ${message}`);
-    if (hint) console.error(`\n ${c.red}kivo:${c.reset} ${message}`);
+    if (hint) console.error(`${c.dim}${hint}${c.reset}`);
     process.exit(1);
 }
 
