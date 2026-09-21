@@ -1,101 +1,90 @@
 # Kivo
 
-A terminal coding agent, built by hand in TypeScript. No agent framework, no orchestration library — just a loop, four tools, and a typed event stream.
+A minimal terminal coding agent written in TypeScript, without an agent framework.
 
-Kivo reads and edits files in your project, runs shell commands, reads the failures, and tries again. The whole thing is about 600 lines you can read in one sitting.
+Kivo reads and edits files in a project, runs shell commands, and uses the results to decide what to do next. The implementation is intentionally small (around 600 lines) so the full agent loop can be read end to end.
 
-```
+```bash
 kivo "the tests in test.js are failing, find and fix the bug"
 ```
 
----
+## Installation
 
-## Install
+Kivo requires [Bun](https://bun.sh) 1.1 or later and an OpenAI API key.
 
-All paths need an OpenAI API key. Pick whichever fits.
-
-**From npm** — needs [Bun](https://bun.sh) ≥ 1.1 installed
+### npm
 
 ```bash
-npm install -g kivoforge      # or: bun install -g kivoforge
+npm install -g kivoforge
+# or
+bun install -g kivoforge
 ```
 
-> The package is published as **`kivoforge`** (the name `kivo` was taken). The command it installs is **`kivo`**.
+The npm package is named `kivoforge` and installs the `kivo` command.
 
-**Straight from GitHub**
-
-```bash
-bun install -g github:govind-vashishat/Kivo
-```
-
-**From source**
+### From source
 
 ```bash
 git clone https://github.com/govind-vashishat/Kivo.git
 cd Kivo
 bun install
-bun link          # makes `kivo` global
+bun link
 ```
 
-**Standalone binary (no Bun needed on the target machine)**
+### Standalone binary
+
+To build a single executable that runs without Bun installed:
 
 ```bash
-bun run build     # produces ./kivo — a single ~78MB executable
-./kivo "fix the failing test"
+bun run build
+./kivo --help
 ```
 
-Useful for demoing on a machine that doesn't have Bun installed. Copy the one file across and run it.
+This produces a self-contained binary (~78 MB) for the current platform.
 
-### API key
+## Configuration
 
-Kivo needs `OPENAI_API_KEY`. Either:
+Set your API key in the environment:
 
 ```bash
-export OPENAI_API_KEY="sk-..."                            # this shell only
-echo 'export OPENAI_API_KEY="sk-..."' >> ~/.zshrc         # permanent
+export OPENAI_API_KEY="sk-..."
 ```
 
-…or drop a `.env` file in the directory you run `kivo` from:
+Alternatively, create a `.env` file in the directory where you run `kivo`:
 
 ```
 OPENAI_API_KEY=sk-...
 ```
 
-Bun loads `.env` automatically — this works for both `bun run` and the compiled binary.
-
----
-
 ## Usage
 
 ```bash
-kivo                    # interactive session
-kivo "<task>"           # run one task and exit
-kivo --help
+kivo              # start an interactive session
+kivo "<task>"     # run a single task and exit
+kivo --help       # show usage
 ```
 
-Kivo operates on the directory you run it from, so `cd` into the project you want it to work on.
+Kivo operates on the current working directory. Run it from the root of the project you want it to work on.
 
-In a session:
+> **Note:** Kivo executes shell commands and file edits proposed by the model without asking for confirmation. Use it in a directory under version control.
 
-| command  | what it does                |
-| -------- | --------------------------- |
-| `/clear` | start a fresh conversation  |
-| `/help`  | show commands               |
-| `/exit`  | quit                        |
+### Session commands
 
-A session keeps one conversation context across prompts, so you can follow up ("now add a test for that") without re-explaining. One-shot runs get a fresh context each time.
+| Command  | Description                   |
+| -------- | ----------------------------- |
+| `/clear` | Reset the conversation        |
+| `/help`  | Show available commands       |
+| `/exit`  | Quit                          |
 
----
+In an interactive session, conversation context persists across prompts. Single-task runs start with a fresh context.
 
 ## How it works
 
-The whole agent is a loop. Each turn:
+Kivo runs a single loop:
 
-1. Send the conversation so far to the model, along with the tool schemas.
-2. If the model returned no tool calls → it's done. Stop.
-3. Otherwise run every tool call it asked for, append the results to the conversation, and go again.
-
-That's it. That's the agent.
+1. Send the conversation and tool definitions to the model.
+2. If the response contains no tool calls, the task is complete.
+3. Otherwise, execute each tool call, append the results to the conversation, and repeat.
 
 ```
 user task ──▶ ┌─────────────────────────────┐
@@ -110,40 +99,33 @@ user task ──▶ ┌───────────────────
                            results to context ─────┘
 ```
 
-### Self-correction is free
+### Error handling
 
-There's no retry logic or error-recovery layer in Kivo. When a tool fails, it returns the failure **as its output** instead of throwing:
+Tool failures are returned to the model as tool output rather than raised as exceptions. A failed edit, a missing file, or a non-zero exit code becomes part of the conversation, and the model can adjust on the next step. There is no separate retry mechanism.
 
-```ts
-if (count === 0)
-    return { output: `old_text not found in ${input.path}`, isError: true }
-```
+### Context management
 
-So the failure lands in the conversation as a normal tool result, the model reads it on the next turn, and adjusts. Run the tests, see the stack trace, fix the real bug. The "agentic" behaviour is a consequence of the loop plus honest error messages — not a feature anyone wrote.
-
-### The context is ours, deliberately
-
-Kivo uses the OpenAI Responses API but ignores `previous_response_id` and sends the full conversation itself every turn. That's slightly more work, and it's the point: **`ContextManager` owns the conversation**, which means context management and compaction are things Kivo can implement rather than things the API does invisibly. See [Roadmap](#roadmap).
+Kivo does not use the Responses API's server-side conversation state (`previous_response_id`). The full conversation is held in `ContextManager` and sent with each request, which keeps context handling, including future compaction, under the application's control.
 
 ### Tools
 
-| tool         | notes                                                                    |
-| ------------ | ------------------------------------------------------------------------ |
-| `read_file`  | full contents of a path                                                   |
-| `write_file` | create or overwrite whole file                                            |
-| `edit_file`  | replace an exact snippet; `old_text` must match **exactly once** or it errors |
-| `run_bash`   | run a command in the working dir; returns stdout, stderr and exit code    |
+| Tool         | Description                                                           |
+| ------------ | --------------------------------------------------------------------- |
+| `read_file`  | Read the contents of a file                                           |
+| `write_file` | Create or overwrite a file                                            |
+| `edit_file`  | Replace an exact snippet; fails unless `old_text` matches exactly once |
+| `run_bash`   | Run a shell command in the working directory; returns stdout, stderr, and exit code |
 
-`edit_file` refusing ambiguous matches is intentional — a silent wrong-place edit is far worse than an error the model can recover from.
+`edit_file` requires a unique match so that ambiguous edits fail instead of applying to the wrong location.
 
-### The event stream
+### Events
 
-The agent core (`src/agent/`) imports nothing UI-related. It emits a typed event stream, and every frontend subscribes:
+The agent core in `src/agent/` has no dependency on the CLI. It emits a typed event stream, which the CLI and the eval runner each consume independently.
 
 ```ts
 export type AgentEvent =
     | { type: "text_delta"; text: string }
-    | { type: "tool_start"; name: string, input: unknown, id: string }
+    | { type: "tool_start"; name: string; input: unknown; id: string }
     | { type: "tool_result"; id: string; output: string; isError: boolean }
     | { type: "turn_end"; stopReason: string }
     | { type: "error"; message: string }
@@ -151,68 +133,53 @@ export type AgentEvent =
     | { type: "thinking_end" }
 ```
 
-The CLI renders these as coloured output and a spinner. The eval runner subscribes to nothing at all and just runs the agent silently. A web UI would be a third subscriber, with no changes to the core. Dependencies point inward — that's the one architectural rule the project holds to.
-
----
-
-## Layout
+## Project structure
 
 ```
 src/
-  agent/              ← imports nothing UI-specific
-    events.ts         the AgentEvent protocol
-    loop.ts           runAgent — the loop above
-    tools.ts          tool schemas + executor
-    context.ts        ContextManager — owns the conversation
+  agent/
+    events.ts     AgentEvent types
+    loop.ts       runAgent: the agent loop
+    tools.ts      tool definitions and executor
+    context.ts    ContextManager: conversation state
   cli/
-    index.ts          entry: task arg = one-shot, no arg = session
-    session.ts        the REPL
-    render.ts         event → terminal output, colours, spinner
+    index.ts      entry point (single task or session)
+    session.ts    interactive session
+    render.ts     terminal output
+bin/
+  kivo.mjs        launcher used by the npm package
 evals/
-  runner.ts           harness
-  sandboxes/          broken repos + a judge for each
+  runner.ts       evaluation harness
+  sandboxes/      test repositories
 ```
 
----
+## Evaluation
 
-## Evals
-
-Kivo scores itself on small broken repos. Each sandbox has intentionally broken code, a `test.js` that judges the fix, and a `task.json` with the prompt and a verify command.
+The `evals/` directory contains small repositories with known bugs. Each sandbox includes a `task.json` (the prompt and a verification command) and a `test.js` that checks the fix.
 
 ```bash
 bun run eval
 ```
 
-The runner copies each sandbox to a temp dir (so the original stays broken and reproducible), runs the agent with no event listener, then runs the verify command. Exit code 0 = pass. Results append to `eval_history.json` so changes are comparable over time.
+Each sandbox is copied to a temporary directory, the agent runs against the copy, and the verification command determines pass or fail. Results are appended to `eval_history.json`. Running the evals requires Node.js.
 
-| sandbox           | task                          | result |
-| ----------------- | ----------------------------- | ------ |
-| `01-syntax-error` | unparseable file              | pass   |
-| `02-failing-test` | off-by-one in a stats helper  | pass   |
-| `03-multi-file`   | wrong prices across two files | pass   |
+Current results:
 
-**3/3 baseline.** These are small on purpose — they're the starting instrument, not a benchmark. Harder and longer sandboxes are next, because the interesting measurements need tasks big enough to strain the context window.
+| Sandbox           | Task                               | Result |
+| ----------------- | ---------------------------------- | ------ |
+| `01-syntax-error` | Fix an unparseable file            | Pass   |
+| `02-failing-test` | Fix an off-by-one error            | Pass   |
+| `03-multi-file`   | Fix incorrect prices across files  | Pass   |
 
-Requires `node` on PATH (the sandboxes run `node test.js`).
-
----
+These tasks are intentionally small. Longer tasks are planned to exercise context management.
 
 ## Roadmap
 
-The next piece of real work is **context compaction** inside `ContextManager.getItems()`. Right now it returns the full conversation untouched, which means a long task eventually blows the context window. The plan is to compact older turns and measure the before/after against the eval suite — a real number, not a vibe.
-
-Also queued:
-
-- harder eval sandboxes (including "must still compile after the edit")
-- streaming output instead of waiting for the full response
-- Ctrl-C interrupt mid-task
-- a web UI as a second consumer of the event stream
-
----
-
-## Built with
-
-Bun · TypeScript · OpenAI Responses API. No agent framework, by design.
+- Context compaction in `ContextManager`, measured against the eval suite
+- Longer, multi-step eval tasks
+- Streaming responses
+- Interrupting a running task with Ctrl-C
+- Web UI built on the event stream
 
 ## License
 
