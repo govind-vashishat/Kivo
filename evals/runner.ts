@@ -21,6 +21,9 @@ interface EvalRecord {
     steps: number;
     stopReason: string;
     durationMs: number;
+    peakInputTokens: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
 }
 
 async function runOneTask(sandboxName: string): Promise<EvalRecord> {
@@ -33,8 +36,12 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
     await cp(sourceDir, workDir, { recursive: true });
 
     const start = Date.now();
+
     let stopReason = "error";
     let steps = 0;
+    let peakInputTokens = 0;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
     try {
         // No onEvent passed - agent runs silently 
@@ -43,8 +50,14 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
             cwd: workDir,
             maxSteps: manifest.maxSteps,
         });
+
         stopReason = result.stopReason;
         steps = result.steps;
+
+        peakInputTokens = Math.max(0, ...result.usage.map((u) => u.inputTokens));
+        totalInputTokens = result.usage.reduce((sum, u) => sum + u.inputTokens, 0);
+        totalOutputTokens = result.usage.reduce((sum, u) => sum + u.outputTokens, 0);
+
     } catch (err) {
         console.error(`  agent threw on ${manifest.id}:`, err);
     }
@@ -66,6 +79,9 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
         steps,
         stopReason,
         durationMs: Date.now() - start,
+        peakInputTokens,
+        totalInputTokens,
+        totalOutputTokens,
     };
 }
 
@@ -78,13 +94,16 @@ async function main() {
         process.stdout.write(`Running ${name}... `);
         const record = await runOneTask(name);
         console.log(
-            `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, ${record.stopReason}, ${record.durationMs}ms)`
+            `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, ${record.stopReason}, ${record.durationMs}ms, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok)`
         );
         records.push(record);
     };
 
     const passed = records.filter((r) => r.pass).length;
     console.log(`\nAccuracy: ${passed}/${records.length} (${((passed / records.length) * 100).toFixed(0)}%)`);
+    
+     const suiteTokens = records.reduce((sum, r) => sum + r.totalInputTokens, 0);
+     console.log(`Total input tokens: ${suiteTokens}`);
 
     let history: EvalRecord[] = [];
     try {
