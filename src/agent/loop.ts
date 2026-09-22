@@ -59,7 +59,22 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
 
         const toolOutputs: any[] = [];
         for (const call of calls as any) {
-            const args = JSON.parse(call.arguments);
+            let args;
+            try {
+                args = JSON.parse(call.arguments);
+            } catch (err: any) {
+                const output = `Error: arguments for ${call.name} were not valid JSON (${err.message}). Raw arguments: ${call.arguments}`;
+
+                emit({ type: "tool_start", name: call.name as ToolName, input: call.arguments, id: call.call_id });
+                emit({ type: "tool_result", id: call.call_id, output: output, isError: true });
+
+                toolOutputs.push({
+                    type: "function_call_output",
+                    call_id: call.call_id,
+                    output,
+                });
+                continue;
+            }
 
             emit({ type: "tool_start", name: call.name, input: args, id: call.call_id });
             const { output, isError } = await executeTool(call.name as ToolName, args, cwd);
