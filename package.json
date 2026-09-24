@@ -49,6 +49,9 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "openai": "^7.4.0"
+    "@ai-sdk/openai": "^4.0.74",
+    "ai": "^7.0.113",
+    "openai": "^7.4.0",
+    "zod": "^4.6.5"
   }
 }
