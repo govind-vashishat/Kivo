@@ -1,9 +1,7 @@
-import type OpenAI from "openai";
-
-type Item = OpenAI.Responses.ResponseInputItem;
+import type { ModelMessage, ToolResultPart } from "ai";
 
 export class ContextManager {
-    private items: Item[] = [];
+    private items: ModelMessage[] = [];
 
     //Initial Task from the user - 
     addUserMessage(text: string) {
@@ -11,17 +9,17 @@ export class ContextManager {
     };
 
     //Model's output items - 
-    addModelOutput(outputs: Item[]) {
-        this.items.push(...outputs)
+    addModelOutput(messages: ModelMessage[]) {
+        this.items.push(...messages);
     };
 
-    //Tool's output items-
-    addToolOutput(outputs: Item[]) {
-        this.items.push(...outputs)
+    //Tool results - all parts from one turn go in a single tool message -
+    addToolOutput(parts: ToolResultPart[]) {
+        this.items.push({ role: "tool", content: parts });
     };
 
     //return items -
-    getItems(): Item[] {
+    getItems(): ModelMessage[] {
         return this.items;
     };
 };

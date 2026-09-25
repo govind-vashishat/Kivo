@@ -1,7 +1,8 @@
-import OpenAI from "openai";
 import type { AgentEvent, AgentEventListener } from "./events";
 import { ContextManager } from "./context";
 import { executeTool, toolDefinitions, type ToolName } from "./tools";
+import { generateText, type ToolResultPart } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 export interface RunOptions {
     task: string;
@@ -29,7 +30,6 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     const { task, cwd, maxSteps = 30, model = "gpt-5", onEvent } = opts;
     const emit = (e: AgentEvent) => onEvent?.(e);
 
-    const client = new OpenAI();
     const context = opts.context ?? new ContextManager();
     context.addUserMessage(task);
 
@@ -39,12 +39,12 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         if (process.env.DEBUG) console.log(`\n===== ROUND ${step + 1} =====`);
 
         emit({ type: "thinking_start" });
-        let response;
+        let result;
         try {
-            response = await client.responses.create({
-                model,
+            result = await generateText({
+                model: openai(model),
                 instructions: SYSTEM_PROMPT,
-                input: context.getItems(),
+                messages: context.getItems(),
                 tools: toolDefinitions,
             });
         } finally {
@@ -52,53 +52,38 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         }
 
         usage.push({
-            inputTokens: response.usage?.input_tokens ?? 0,
-            outputTokens: response.usage?.output_tokens ?? 0,
+            inputTokens: result.usage?.inputTokens ?? 0,
+            outputTokens: result.usage?.outputTokens ?? 0,
         });
 
-        if(process.env.DEBUG) console.log(`tokens in: ${response.usage?.input_tokens}`);
+        if(process.env.DEBUG) console.log(`tokens in: ${result.usage.inputTokens}, out: ${result.usage.outputTokens}`);
 
-        context.addModelOutput(response.output as any);
-        if(response.output_text) {
-            emit({ type: "text_delta", text: response.output_text });
+        context.addModelOutput(result.responseMessages);
+
+        if(result.text) {
+            emit({ type: "text_delta", text: result.text });
         };
 
-        const calls = response.output.filter(
-            (item: any) => item.type === "function_call"
-        );
-
-        if(calls.length === 0) {
+        if(result.toolCalls.length === 0) {
             emit({ type: "turn_end", stopReason: "completed" });
             return { stopReason: "completed", steps: step + 1 , usage };
         };
 
-        const toolOutputs: any[] = [];
-        for (const call of calls as any) {
-            let args: any;
-            try {
-                args = JSON.parse(call.arguments);
-            } catch (err: any) {
-                const output = `Error: arguments for ${call.name} were not valid JSON (${err.message}). Raw arguments: ${call.arguments}`;
+        const toolOutputs: ToolResultPart[] = [];
+        for (const call of result.toolCalls) {
+            emit({ type: "tool_start", name: call.toolName, input: call.input, id: call.toolCallId });
 
-                emit({ type: "tool_start", name: call.name, input: call.arguments, id: call.call_id });
-                emit({ type: "tool_result", id: call.call_id, output: output, isError: true });
+            const { output, isError } = await executeTool(call.toolName as ToolName, call.input, cwd);
 
-                toolOutputs.push({
-                    type: "function_call_output",
-                    call_id: call.call_id,
-                    output,
-                });
-                continue;
-            }
-
-            emit({ type: "tool_start", name: call.name, input: args, id: call.call_id });
-            const { output, isError } = await executeTool(call.name as ToolName, args, cwd);
-            emit({ type: "tool_result", id: call.call_id, output: output, isError: isError });
+            emit({ type: "tool_result", id: call.toolCallId, output: output, isError: isError });
 
             toolOutputs.push({
-                type: "function_call_output",
-                call_id: call.call_id,
-                output,
+                type: "tool-result",
+                toolCallId: call.toolCallId,
+                toolName: call.toolName,
+                output: isError
+                        ? { type: "error-text", value: output }
+                        : { type: "text", value: output  }
             });
         };
         context.addToolOutput(toolOutputs);
