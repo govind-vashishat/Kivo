@@ -39,9 +39,12 @@
     "agent": "bun run src/cli/index.ts",
     "eval": "bun run evals/runner.ts",
     "build": "bun build --compile src/cli/index.ts --outfile kivo",
+    "lint": "biome check .",
+    "format": "biome check --write .",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "@types/bun": "latest",
     "@types/node": "^26.2.0"
   },

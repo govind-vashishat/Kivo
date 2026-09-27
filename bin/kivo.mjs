@@ -8,8 +8,8 @@
 // checks for Bun, and either hands off to it or explains how to get it.
 
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const entry = join(here, "..", "src", "cli", "index.ts");

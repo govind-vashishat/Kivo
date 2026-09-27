@@ -1,8 +1,8 @@
-import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import * as readline from "node:readline/promises";
 import { ContextManager } from "../agent/context";
 import { runAgent } from "../agent/loop";
-import { renderEvent, rule, c, describeError } from "./render";
+import { c, describeError, renderEvent, rule } from "./render";
 
 const BANNER = `
 \x1b[36m
@@ -36,21 +36,21 @@ export async function startSession() {
     //One context for the whole session -
     let context = new ContextManager();
 
-    while(true) {
+    while (true) {
         const line = (await r1.question(`\n${c.prompt}kivo ›${c.reset} `)).trim();
-        if(!line) continue;
+        if (!line) continue;
 
-        if(line === "/exit" || line === "/quit") {
+        if (line === "/exit" || line === "/quit") {
             console.log(`${c.dim}bye 👋${c.reset}`);
             break;
         }
 
-        if(line === "/help") {
+        if (line === "/help") {
             console.log(HELP);
             continue;
         }
 
-        if(line === "/clear") {
+        if (line === "/clear") {
             context = new ContextManager();
             console.log(` ${c.dim}(conversation cleared)${c.reset}`);
             continue;
@@ -62,7 +62,7 @@ export async function startSession() {
                 cwd: process.cwd(),
                 context,
                 onEvent: renderEvent,
-            })
+            });
         } catch (err) {
             console.error(`\n ${c.red}[error]${c.reset} ${describeError(err)}`);
         }
