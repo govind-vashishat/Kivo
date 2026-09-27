@@ -22,12 +22,12 @@ const USAGE = `
  in the folder you run it from).
 `;
 
-if(args[0] === "--help" || args[0] === "-h") {
+if (args[0] === "--help" || args[0] === "-h") {
     console.log(USAGE);
     process.exit(0);
 }
 
-if(!process.env.OPENAI_API_KEY) {
+if (!process.env.OPENAI_API_KEY) {
     fatal(
         "no OPENAI_API_KEY found.",
         `
@@ -39,7 +39,7 @@ if(!process.env.OPENAI_API_KEY) {
 
  Or create a .env file in the folder you run kivo from:
    OPENAI_API_KEY=sk-...
-`
+`,
     );
 }
 
@@ -51,7 +51,7 @@ if (task) {
             task,
             cwd: process.cwd(),
             onEvent: renderEvent,
-        })
+        });
     } catch (err) {
         fatal(describeError(err));
     }

@@ -3,9 +3,9 @@ import type { AgentEvent } from "../agent/events";
 export const c = {
     reset: "\x1b[0m",
     dim: "\x1b[90m",
-    navy: "\x1b[38;2;90;120;200m",     // soft blue for rules/accents
+    navy: "\x1b[38;2;90;120;200m", // soft blue for rules/accents
     navyBold: "\x1b[1m\x1b[38;2;120;150;230m",
-    prompt: "\x1b[38;2;130;160;255m",  // brighter blue for the prompt
+    prompt: "\x1b[38;2;130;160;255m", // brighter blue for the prompt
     green: "\x1b[32m",
     red: "\x1b[31m",
     cyan: "\x1b[36m",
@@ -13,7 +13,7 @@ export const c = {
 
 export function rule(char = "-"): string {
     const width = Math.min(process.stdout.columns ?? 60, 80);
-    return `${c.navy}${char.repeat(width)}${c.reset}`
+    return `${c.navy}${char.repeat(width)}${c.reset}`;
 }
 
 let stopSpinner: (() => void) | null = null;
@@ -22,12 +22,14 @@ export function startSpinner(label = "thinking"): () => void {
     const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let i = 0;
     const timer = setInterval(() => {
-        process.stdout.write(`\r${c.navy}${frames[i++ % frames.length]}${c.reset} ${c.dim}${label}…${c.reset}`);
+        process.stdout.write(
+            `\r${c.navy}${frames[i++ % frames.length]}${c.reset} ${c.dim}${label}…${c.reset}`,
+        );
     }, 80);
     return () => {
         clearInterval(timer);
         process.stdout.write("\r\x1b[K");
-    }
+    };
 }
 
 export function describeError(err: any): string {
@@ -47,7 +49,7 @@ export function fatal(message: string, hint?: string): never {
     process.exit(1);
 }
 
-//shared renderer - both for one shot tasks and interactive sessions - 
+//shared renderer - both for one shot tasks and interactive sessions -
 export function renderEvent(e: AgentEvent) {
     switch (e.type) {
         case "thinking_start":
@@ -61,13 +63,15 @@ export function renderEvent(e: AgentEvent) {
             console.log(`\n${e.text}`);
             break;
         case "tool_start":
-            console.log(`\n${c.cyan}→ ${e.name}${c.reset} ${c.dim}${JSON.stringify(e.input).slice(0, 120)}${c.reset}`);
+            console.log(
+                `\n${c.cyan}→ ${e.name}${c.reset} ${c.dim}${JSON.stringify(e.input).slice(0, 120)}${c.reset}`,
+            );
             break;
         case "tool_result":
             console.log(
                 e.isError
                     ? `  ${c.red}✗${c.reset} ${e.output.slice(0, 200)}`
-                    : `  ${c.green}✓${c.reset} ${e.output.slice(0, 120)}`
+                    : `  ${c.green}✓${c.reset} ${e.output.slice(0, 120)}`,
             );
             break;
         case "turn_end":

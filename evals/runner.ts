@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, cp, rm, mkdtemp } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { $ } from "bun";
@@ -29,7 +29,7 @@ interface EvalRecord {
 async function runOneTask(sandboxName: string): Promise<EvalRecord> {
     const sourceDir = path.join(SANDBOX_DIR, sandboxName);
     const manifest: TaskManifest = JSON.parse(
-        await readFile(path.join(sourceDir, "task.json"), "utf-8")
+        await readFile(path.join(sourceDir, "task.json"), "utf-8"),
     );
 
     const workDir = await mkdtemp(path.join(tmpdir(), `kivo-eval-${manifest.id}-`));
@@ -44,7 +44,7 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
     let totalOutputTokens = 0;
 
     try {
-        // No onEvent passed - agent runs silently 
+        // No onEvent passed - agent runs silently
         const result = await runAgent({
             task: manifest.prompt,
             cwd: workDir,
@@ -57,7 +57,6 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
         peakInputTokens = Math.max(0, ...result.usage.map((u) => u.inputTokens));
         totalInputTokens = result.usage.reduce((sum, u) => sum + u.inputTokens, 0);
         totalOutputTokens = result.usage.reduce((sum, u) => sum + u.outputTokens, 0);
-
     } catch (err) {
         console.error(`  agent threw on ${manifest.id}:`, err);
     }
@@ -87,34 +86,37 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
 
 async function main() {
     const entries = await readdir(SANDBOX_DIR, { withFileTypes: true });
-    const sandboxes = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+    const sandboxes = entries
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort();
 
     const records: EvalRecord[] = [];
     for (const name of sandboxes) {
         process.stdout.write(`Running ${name}... `);
         const record = await runOneTask(name);
         console.log(
-            `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, ${record.stopReason}, ${record.durationMs}ms, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok)`
+            `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, ${record.stopReason}, ${record.durationMs}ms, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok)`,
         );
         records.push(record);
-    };
+    }
 
     const passed = records.filter((r) => r.pass).length;
-    console.log(`\nAccuracy: ${passed}/${records.length} (${((passed / records.length) * 100).toFixed(0)}%)`);
-    
-     const suiteTokens = records.reduce((sum, r) => sum + r.totalInputTokens, 0);
-     console.log(`Total input tokens: ${suiteTokens}`);
+    console.log(
+        `\nAccuracy: ${passed}/${records.length} (${((passed / records.length) * 100).toFixed(0)}%)`,
+    );
+
+    const suiteTokens = records.reduce((sum, r) => sum + r.totalInputTokens, 0);
+    console.log(`Total input tokens: ${suiteTokens}`);
 
     let history: EvalRecord[] = [];
     try {
         history = JSON.parse(await readFile(HISTORY_FILE, "utf-8"));
-    } catch {
-        
-    }
+    } catch {}
     await writeFile(HISTORY_FILE, JSON.stringify([...history, ...records], null, 2));
 }
 
 main().catch((err) => {
     console.error("runner crashed:", err);
     process.exit(1);
-})
+});
