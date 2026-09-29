@@ -1,5 +1,4 @@
 function formatPrice(cents) {
-    //BUG: should divide by 100 to convert cents to dollars, but multiplies
     return "$" + (cents * 100).toFixed(2);
 }
 
