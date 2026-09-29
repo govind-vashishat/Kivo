@@ -27,7 +27,7 @@ export interface RunResult {
 const SYSTEM_PROMPT = `You are a coding agent working in a real filesystem. You have tools to read, write, and edit files, and to run shell commands. Work step by step: inspect files before editing, make the smallest change that solves the task, and verify your work by running tests or build commands. When a command fails, read the error output and fix the actual problem — do not guess blindly or claim success without verifying.`;
 
 export async function runAgent(opts: RunOptions): Promise<RunResult> {
-    const { task, cwd, maxSteps = 30, model = "gpt-5", onEvent } = opts;
+    const { task, cwd, maxSteps = 30, model = process.env.KIVO_MODEL ?? "gpt-5", onEvent } = opts;
     const emit = (e: AgentEvent) => onEvent?.(e);
 
     const context = opts.context ?? new ContextManager();
@@ -44,6 +44,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
             instructions: SYSTEM_PROMPT,
             messages: context.getItems(),
             tools: toolDefinitions,
+            reasoning: (process.env.KIVO_REASONING as any) ?? "provider-default",
         }).finally(() => emit({ type: "thinking_end" }));
 
         usage.push({

@@ -86,9 +86,12 @@ async function runOneTask(sandboxName: string): Promise<EvalRecord> {
 
 async function main() {
     const entries = await readdir(SANDBOX_DIR, { withFileTypes: true });
+    const sandboxFilter = process.argv[2];
+
     const sandboxes = entries
         .filter((e) => e.isDirectory())
         .map((e) => e.name)
+        .filter((name) => !sandboxFilter || name.includes(sandboxFilter))
         .sort();
 
     const records: EvalRecord[] = [];
