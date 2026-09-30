@@ -1,0 +1,6 @@
+{
+    "id": "04-invoice-currency",
+    "prompt": "Customers are reporting wrong totals on some invoices. Run `node test.js` to see which cases fail, find the root cause and fix it. Do not modify test.js.",
+    "verifyCommand": "node test.js",
+    "maxSteps": 30
+}
