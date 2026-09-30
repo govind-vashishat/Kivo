@@ -62,11 +62,6 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         usage.push(turn);
         emit({ type: "usage", step: step + 1, ...turn });
 
-        if (process.env.DEBUG)
-            console.log(
-                `tokens in: ${result.usage.inputTokens}, out: ${result.usage.outputTokens}`,
-            );
-
         context.addModelOutput(result.responseMessages);
 
         if (result.text) {
