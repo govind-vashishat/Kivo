@@ -1,5 +1,7 @@
 import type { AgentEvent } from "../agent/events";
 
+const DEBUG = Boolean(process.env.DEBUG);
+
 export const c = {
     reset: "\x1b[0m",
     dim: "\x1b[90m",
@@ -52,6 +54,15 @@ export function fatal(message: string, hint?: string): never {
 //shared renderer - both for one shot tasks and interactive sessions -
 export function renderEvent(e: AgentEvent) {
     switch (e.type) {
+        case "turn_start":
+            if (DEBUG) console.log(`\n${c.dim}===== ROUND ${e.step} =====${c.reset}`);
+            break;
+        case "usage":
+            if (DEBUG)
+                console.log(
+                    `${c.dim}tokens in: ${e.inputTokens} (cached ${e.cachedInputTokens}), out: ${e.outputTokens} (reasoning ${e.reasoningTokens})${c.reset}`,
+                );
+            break;
         case "thinking_start":
             stopSpinner = startSpinner();
             break;
