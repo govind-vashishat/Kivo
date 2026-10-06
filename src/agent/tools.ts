@@ -98,3 +98,46 @@ export async function executeTool(name: ToolName, input: any, cwd: string) {
         return { output: String(err?.message ?? err), isError: true };
     }
 }
+
+// What a tool is about to change, so the UI can show it and ask first
+export interface ApprovalRequest {
+    tool: ToolName;
+    path?: string;
+    before?: string;
+    after?: string;
+    command?: string;
+}
+
+export async function describeChange(
+    name: ToolName,
+    input: any,
+    cwd: string,
+): Promise<ApprovalRequest | null> {
+    switch (name) {
+        case "write_file": {
+            const file = Bun.file(resolve(cwd, input.path));
+            const before = (await file.exists()) ? await file.text() : "";
+            return { tool: name, path: input.path, before, after: input.content };
+        }
+
+        case "edit_file": {
+            const file = Bun.file(resolve(cwd, input));
+            if (!(await file.exists())) return null;
+
+            const before = await file.text();
+            if (before.split(input.old_text).length - 1 !== 1) return null;
+            return {
+                tool: name,
+                path: input.path,
+                before,
+                after: before.replace(input.old_text, input.new_text),
+            };
+        }
+
+        case "run_bash":
+            return { tool: name, command: input.command };
+
+        default:
+            return null;
+    }
+}

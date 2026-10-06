@@ -2,7 +2,13 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, type ToolResultPart } from "ai";
 import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
-import { executeTool, type ToolName, toolDefinitions } from "./tools";
+import {
+    type ApprovalRequest,
+    executeTool,
+    type ToolName,
+    toolDefinitions,
+    describeChange,
+} from "./tools";
 
 export interface RunOptions {
     task: string;
@@ -11,6 +17,7 @@ export interface RunOptions {
     model?: string;
     onEvent?: AgentEventListener;
     context?: ContextManager;
+    approve?: (request: ApprovalRequest) => Promise<boolean>;
 }
 
 export interface TurnUsage {
@@ -82,13 +89,25 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
                 id: call.toolCallId,
             });
 
-            const { output, isError } = await executeTool(
-                call.toolName as ToolName,
-                call.input,
-                cwd,
-            );
+            const request = opts.approve
+                ? await describeChange(call.toolName as ToolName, call.input, cwd)
+                : null;
 
-            emit({ type: "tool_result", id: call.toolCallId, output: output, isError: isError });
+            const approved = request && opts.approve ? await opts.approve(request) : true;
+
+            const { output, isError } = approved
+                ? await executeTool(call.toolName as ToolName, call.input, cwd)
+                : {
+                      output: "The user rejected this action. Ask them what they want instead.",
+                      isError: true,
+                  };
+
+            emit({
+                type: "tool_result",
+                id: call.toolCallId,
+                output: output,
+                isError: isError,
+            });
 
             toolOutputs.push({
                 type: "tool-result",
