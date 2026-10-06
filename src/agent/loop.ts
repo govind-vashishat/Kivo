@@ -4,10 +4,10 @@ import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
 import {
     type ApprovalRequest,
+    describeChange,
     executeTool,
     type ToolName,
     toolDefinitions,
-    describeChange,
 } from "./tools";
 
 export interface RunOptions {
