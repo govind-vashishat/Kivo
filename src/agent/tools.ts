@@ -121,7 +121,7 @@ export async function describeChange(
         }
 
         case "edit_file": {
-            const file = Bun.file(resolve(cwd, input));
+            const file = Bun.file(resolve(cwd, input.path));
             if (!(await file.exists())) return null;
 
             const before = await file.text();
