@@ -99,6 +99,8 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             add({ kind: "error", text: describeError(err) });
         } finally {
             setBusy(false);
+            setRunning(null);
+            setPending(null);
         }
     };
 
