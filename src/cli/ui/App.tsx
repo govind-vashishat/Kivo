@@ -1,4 +1,4 @@
-import { render, Static, useApp } from "ink";
+import { render, Static, useApp, useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
 import { ContextManager } from "../../agent/context";
 import type { AgentEvent } from "../../agent/events";
@@ -27,9 +27,12 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
     const [busy, setBusy] = useState(false);
     const [pending, setPending] = useState<Pending | null>(null);
     const [running, setRunning] = useState<{ name: string; input: unknown } | null>(null);
+    const [draft, setDraft] = useState(""); // what's typed in the input box
 
     const context = useRef(new ContextManager()); // one conversation per session
     const toolStarts = useRef(new Map<string, { name: string; input: unknown }>());
+    // The pending approval also lives in a ref, so a keypress always sees the latest one
+    const pendingRef = useRef<Pending | null>(null);
 
     const add = (item: Item) => setItems((prev) => [...prev, item]);
 
@@ -74,14 +77,19 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             add({ kind: "change", request, approved: true });
             return Promise.resolve(true);
         }
-        return new Promise((resolve) => setPending({ request, resolve }));
+        return new Promise((resolve) => {
+            pendingRef.current = { request, resolve };
+            setPending(pendingRef.current);
+        });
     };
 
     const decide = (approved: boolean) => {
-        if (!pending) return;
-        add({ kind: "change", request: pending.request, approved });
-        pending.resolve(approved);
+        const p = pendingRef.current;
+        if (!p) return;
+        pendingRef.current = null; // clear first, so a double press can't answer twice
         setPending(null);
+        add({ kind: "change", request: p.request, approved });
+        p.resolve(approved);
     };
 
     const run = async (task: string) => {
@@ -99,7 +107,8 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             add({ kind: "error", text: describeError(err) });
         } finally {
             setBusy(false);
-            setRunning(null);
+            setRunning(null); // a crashed run never sends tool_result, so clear it here
+            pendingRef.current = null;
             setPending(null);
         }
     };
@@ -116,6 +125,30 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
         void run(text);
     };
 
+    // The ONLY keyboard handler in the app. It stays mounted for the whole session, so the
+    // terminal never leaves raw mode: keys pressed while the agent works are seen and dropped
+    // here, instead of piling up and silently answering the next approval prompt.
+    useInput(
+        (input, key) => {
+            if (pendingRef.current) {
+                if (input === "y" || input === "Y") decide(true);
+                if (input === "n" || input === "N") decide(false);
+                return;
+            }
+            if (busy || initialTask) return; // agent is working: ignore typing
+
+            if (key.return) {
+                submit(draft);
+                setDraft("");
+            } else if (key.backspace || key.delete) {
+                setDraft((v) => v.slice(0, -1));
+            } else if (!key.ctrl && !key.meta && !key.tab && !key.upArrow && !key.downArrow) {
+                setDraft((v) => v + input);
+            }
+        },
+        { isActive: Boolean(process.stdin.isTTY) }, // e.g. `kivo --yes "..."` in a script
+    );
+
     // One-shot mode: run the task once on start, then quit
     // biome-ignore lint/correctness/useExhaustiveDependencies: must run exactly once, on mount
     useEffect(() => {
@@ -128,13 +161,13 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             <Static items={items}>{(item, i) => <ItemView key={i} item={item} />}</Static>
 
             {pending ? (
-                <ApprovalPrompt request={pending.request} onDecide={decide} />
+                <ApprovalPrompt request={pending.request} />
             ) : running ? (
                 <ToolLine name={running.name} input={running.input} running />
             ) : busy ? (
                 <Spinner label="thinking" />
             ) : initialTask ? null : (
-                <Input onSubmit={submit} />
+                <Input value={draft} />
             )}
         </>
     );

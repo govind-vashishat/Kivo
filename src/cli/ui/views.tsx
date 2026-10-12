@@ -1,4 +1,4 @@
-import { Box, Text, useInput } from "ink";
+import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import type { ApprovalRequest } from "../../agent/tools";
 import { DiffView } from "./DiffView";
@@ -51,7 +51,11 @@ export function ItemView({ item }: { item: Item }) {
             return (
                 <Box flexDirection="column" marginY={1}>
                     <ChangeView request={item.request} />
-                    {!item.approved && <Text color={theme.del}>✗ rejected</Text>}
+                    {item.approved ? (
+                        <Text color={theme.faint}>✓ approved</Text>
+                    ) : (
+                        <Text color={theme.del}>✗ rejected</Text>
+                    )}
                 </Box>
             );
         case "info":
@@ -204,18 +208,8 @@ function ChangeView({ request }: { request: ApprovalRequest }) {
     );
 }
 
-export function ApprovalPrompt({
-    request,
-    onDecide,
-}: {
-    request: ApprovalRequest;
-    onDecide: (approved: boolean) => void;
-}) {
-    useInput((input) => {
-        if (input === "y" || input === "Y") onDecide(true);
-        if (input === "n" || input === "N") onDecide(false);
-    });
-
+// Display only: the y / n keys are handled by the single useInput in App.tsx
+export function ApprovalPrompt({ request }: { request: ApprovalRequest }) {
     const question = request.tool === "run_bash" ? "Run this command?" : "Apply this change?";
     return (
         <Box flexDirection="column" marginY={1}>
@@ -248,21 +242,8 @@ export function Spinner({ label }: { label: string }) {
     );
 }
 
-// A one-line text input; Ink owns stdin, so we read keys ourselves (no readline).
-export function Input({ onSubmit }: { onSubmit: (line: string) => void }) {
-    const [value, setValue] = useState("");
-
-    useInput((input, key) => {
-        if (key.return) {
-            onSubmit(value);
-            setValue("");
-        } else if (key.backspace || key.delete) {
-            setValue((v) => v.slice(0, -1));
-        } else if (!key.ctrl && !key.meta && !key.tab && !key.upArrow && !key.downArrow) {
-            setValue((v) => v + input);
-        }
-    });
-
+// Display only: typing is handled by the single useInput in App.tsx
+export function Input({ value }: { value: string }) {
     return (
         <Box marginTop={1}>
             <Text color={theme.mute}>❯ </Text>
