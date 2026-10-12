@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 
-import { runAgent } from "../agent/loop";
-import { describeError, fatal, renderEvent } from "./render";
-import { startSession } from "./session";
+import { fatal } from "./render";
+import { startUI } from "./ui/App";
 
 const args = process.argv.slice(2);
 
@@ -12,6 +11,7 @@ const USAGE = `
  Usage:
    kivo                 start an interactive session
    kivo "<task>"        run a single task and exit
+   kivo --yes ...       don't ask before changes (auto-approve)
    kivo --help          show this
 
  Kivo reads and edits files in the directory you run it from,
@@ -43,18 +43,7 @@ if (!process.env.OPENAI_API_KEY) {
     );
 }
 
-const task = args.join(" ");
+const autoApprove = args.includes("--yes") || args.includes("-y");
+const task = args.filter((a) => a !== "--yes" && a !== "-y").join(" ");
 
-if (task) {
-    try {
-        await runAgent({
-            task,
-            cwd: process.cwd(),
-            onEvent: renderEvent,
-        });
-    } catch (err) {
-        fatal(describeError(err));
-    }
-} else {
-    await startSession();
-}
+await startUI({ initialTask: task || undefined, autoApprove });
