@@ -34,6 +34,12 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
     // The pending approval also lives in a ref, so a keypress always sees the latest one
     const pendingRef = useRef<Pending | null>(null);
 
+    const status = [
+        process.env.KIVO_MODEL ?? "gpt-5",
+        `${process.env.KIVO_REASONING ?? "default"} reasoning`,
+        autoApprove ? "auto-approve on" : "approvals on",
+    ].join(" ");
+
     const add = (item: Item) => setItems((prev) => [...prev, item]);
 
     // Agent events -> transcript items
@@ -167,7 +173,7 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             ) : busy ? (
                 <Spinner label="thinking" />
             ) : initialTask ? null : (
-                <Input value={draft} />
+                <Input value={draft} status={status} />
             )}
         </>
     );
