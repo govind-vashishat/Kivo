@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import type { ApprovalRequest } from "../../agent/tools";
+import { Banner } from "./Banner";
 import { DiffView } from "./DiffView";
 import { theme } from "./theme";
 
@@ -14,29 +15,19 @@ export type Item =
     | { kind: "info"; text: string }
     | { kind: "error"; text: string };
 
-const LOGO = `
- ██╗  ██╗██╗██╗   ██╗ ██████╗
- ██║ ██╔╝██║██║   ██║██╔═══██╗
- █████╔╝ ██║██║   ██║██║   ██║
- ██╔═██╗ ██║╚██╗ ██╔╝██║   ██║
- ██║  ██╗██║ ╚████╔╝ ╚██████╔╝
- ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═════╝`;
-
 export function ItemView({ item }: { item: Item }) {
     switch (item.kind) {
         case "banner":
-            return (
-                <Box flexDirection="column" marginBottom={1}>
-                    <Text color={theme.strong}>{LOGO}</Text>
-                    <Text color={theme.mute}> a terminal coding agent · {process.cwd()}</Text>
-                    <Text color={theme.faint}> /help for commands · ctrl-c to quit</Text>
-                </Box>
-            );
+            return <Banner />;
         case "user":
             return (
                 <Box marginY={1}>
-                    <Text color={theme.mute}>❯ </Text>
-                    <Text color={theme.foreground}>{item.text}</Text>
+                    <Text color={theme.mint} bold>
+                        ❯{" "}
+                    </Text>
+                    <Text color={theme.foreground} bold>
+                        {item.text}
+                    </Text>
                 </Box>
             );
         case "text":
@@ -65,26 +56,30 @@ export function ItemView({ item }: { item: Item }) {
     }
 }
 
-const TOOL_LABELS: Record<string, string> = { run_bash: "run" };
+const TOOL_LABELS: Record<string, string> = { run_bash: "bash" };
 
-// "● read_file  src/rates.js": grey dot when done, lime while it runs
+// "● read_file src/rates.js": mint dot, red on error. While it runs the dot is dimmed.
 export function ToolLine({
     name,
     input,
     running,
+    isError,
 }: {
     name: string;
     input: any;
     running?: boolean;
+    isError?: boolean;
 }) {
-    const label = (TOOL_LABELS[name] ?? name).padEnd(10);
+    const label = TOOL_LABELS[name] ?? name;
     const arg = name === "run_bash" ? input?.command : input?.path;
 
     return (
         <Text>
-            <Text color={running ? theme.lime : theme.faint}>● </Text>
-            <Text color={theme.mute}>{label} </Text>
-            <Text color={theme.strong}>{arg}</Text>
+            <Text color={isError ? theme.del : running ? theme.mintDeep : theme.mint}>● </Text>
+            <Text color={theme.strong} bold>
+                {label}{" "}
+            </Text>
+            <Text color={theme.mute}>{arg}</Text>
         </Text>
     );
 }
@@ -93,7 +88,7 @@ export function ToolLine({
 function ToolResult({ name, input, output, isError }: Omit<Item & { kind: "tool" }, "kind">) {
     return (
         <Box flexDirection="column">
-            <ToolLine name={name} input={input} />
+            <ToolLine name={name} input={input} isError={isError} />
             {name === "run_bash" && <CommandOutput output={output} />}
             {name !== "run_bash" && isError && (
                 <Text color={theme.del}> {output.slice(0, 200)}</Text>
@@ -130,7 +125,7 @@ function CommandOutput({ output }: { output: string }) {
             {lines.length === 0 && <Text color={theme.faint}>(no output)</Text>}
             {exitCode === "0" && passed && failed === 0 && (
                 <Box marginTop={1}>
-                    <Text color={theme.lime}>✓ {passed} tests passed</Text>
+                    <Text color={theme.mint}>✓ {passed} tests passed</Text>
                 </Box>
             )}
         </Box>
@@ -141,13 +136,13 @@ function OutputLine({ line }: { line: string }) {
     const indent = line.slice(0, line.length - line.trimStart().length);
     const t = line.trim();
 
-    // ✓ green + muted name for passing tests, ✗ red + bright name for failing ones
+    // ✓ mint + muted name for passing tests, ✗ red + bright name for failing ones
     if (t.startsWith("✓") || t.startsWith("✗") || t.startsWith("✕")) {
         const pass = t.startsWith("✓");
         return (
             <Text>
                 {indent}
-                <Text color={pass ? theme.add : theme.del}>{pass ? "✓" : "✗"}</Text>
+                <Text color={pass ? theme.mint : theme.del}>{pass ? "✓" : "✗"}</Text>
                 <Text color={pass ? theme.mute : theme.strong}>{t.slice(1)}</Text>
             </Text>
         );
@@ -165,13 +160,13 @@ function OutputLine({ line }: { line: string }) {
         );
     }
 
-    // "10 passed, 3 failed": pass part green, fail part red when > 0
+    // "10 passed, 3 failed": pass part mint, fail part red when > 0
     const summary = line.match(/^(.*?)(\d+ pass\w*)(.*?)(\d+) (fail\w*)(.*)$/);
     if (summary) {
         return (
             <Text color={theme.mute}>
                 {summary[1]}
-                <Text color={theme.add}>{summary[2]}</Text>
+                <Text color={theme.mint}>{summary[2]}</Text>
                 {summary[3]}
                 <Text color={summary[4] === "0" ? theme.mute : theme.del}>
                     {summary[4]} {summary[5]}
@@ -215,10 +210,18 @@ export function ApprovalPrompt({ request }: { request: ApprovalRequest }) {
         <Box flexDirection="column" marginY={1}>
             <ChangeView request={request} />
             <Box marginTop={1}>
-                <Text color={theme.foreground}>{question} </Text>
-                <Text color={theme.lime}>y</Text>
-                <Text color={theme.faint}> / </Text>
-                <Text color={theme.foreground}>n</Text>
+                <Text color={theme.foreground} bold>
+                    {question}
+                    {"  "}
+                </Text>
+                <Text backgroundColor={theme.mint} color={theme.ink} bold>
+                    {" y "}
+                </Text>
+                <Text color={theme.mute}> yes </Text>
+                <Text backgroundColor={theme.key} color={theme.foreground} bold>
+                    {" n "}
+                </Text>
+                <Text color={theme.mute}> no</Text>
             </Box>
         </Box>
     );
@@ -236,19 +239,29 @@ export function Spinner({ label }: { label: string }) {
 
     return (
         <Text>
-            <Text color={theme.lime}>{FRAMES[frame]} </Text>
+            <Text color={theme.mint}>{FRAMES[frame]} </Text>
             <Text color={theme.mute}>{label}…</Text>
         </Text>
     );
 }
 
 // Display only: typing is handled by the single useInput in App.tsx
-export function Input({ value }: { value: string }) {
+export function Input({ value, status }: { value: string; status: string }) {
     return (
-        <Box marginTop={1}>
-            <Text color={theme.mute}>❯ </Text>
-            <Text color={theme.foreground}>{value}</Text>
-            <Text backgroundColor={theme.mute}> </Text>
+        <Box flexDirection="column" marginTop={1}>
+            <Box
+                borderStyle="single"
+                borderColor={theme.rule}
+                borderLeft={false}
+                borderRight={false}
+            >
+                <Text color={theme.mint} bold>
+                    ❯{" "}
+                </Text>
+                <Text color={theme.foreground}>{value}</Text>
+                <Text backgroundColor={theme.mint}> </Text>
+            </Box>
+            <Text color={theme.faint}>{`  ${status}`}</Text>
         </Box>
     );
 }
