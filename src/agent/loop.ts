@@ -4,6 +4,7 @@ import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
 import {
     type ApprovalRequest,
+    COMMAND_TIMEOUT_MINUTES,
     describeChange,
     executeTool,
     type ToolName,
@@ -35,7 +36,18 @@ export interface RunResult {
     reasoning: string;
 }
 
-const SYSTEM_PROMPT = `You are a coding agent working in a real filesystem. You have tools to read, write, and edit files, and to run shell commands. Work step by step: inspect files before editing, make the smallest change that solves the task, and verify your work by running tests or build commands. When a command fails, read the error output and fix the actual problem — do not guess blindly or claim success without verifying.`;
+function systemPrompt(model: string): string {
+    const today = new Date().toISOString().slice(0, 10);
+    return `You are Kivo, a terminal coding agent. You run on OpenAI's ${model} model, inside the user's project folder. You can read, write and edit files and run shell commands there, and the user approves each change before it happens. If asked what you are, say this briefly in your own words.
+
+Work step by step: inspect files before editing, make the smallest change that solves the task, and verify your work by running tests or build commands. When a command fails, read the error output and fix the actual problem — do not guess blindly or claim success without verifying.
+
+Today's date is ${today}. Your training data is older than that, so CLIs, install commands and package versions may have changed since. When you are not sure how a tool is used today, check first with \`<command> --help\` or \`npm view <package> version\` instead of relying on memory.
+
+Shell commands run without a terminal: they get no input and are stopped after ${COMMAND_TIMEOUT_MINUTES} minutes. Always pass non-interactive flags (such as --yes), and never start anything that keeps running, like a dev server or a watcher.
+
+Reply in plain text. The terminal does not render Markdown, so do not use **bold**, # headings or tables.`;
+}
 
 export async function runAgent(opts: RunOptions): Promise<RunResult> {
     const { task, cwd, maxSteps = 30, model = process.env.KIVO_MODEL ?? "gpt-5", onEvent } = opts;
@@ -53,7 +65,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         emit({ type: "thinking_start" });
         const result = await generateText({
             model: openai(model),
-            instructions: SYSTEM_PROMPT,
+            instructions: systemPrompt(model),
             messages: context.getItems(),
             tools: toolDefinitions,
             reasoning: reasoning as any,
