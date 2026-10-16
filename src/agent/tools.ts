@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { tool } from "ai";
-import { $ } from "bun";
 import z from "zod";
+import { isReadOnlyCommand } from "./readonly";
 
 //Tool schemas -
 export const toolDefinitions = {
@@ -46,6 +46,8 @@ export const toolDefinitions = {
 
 export type ToolName = keyof typeof toolDefinitions;
 
+export const COMMAND_TIMEOUT_MINUTES = 5;
+
 //Tool executor -
 export async function executeTool(name: ToolName, input: any, cwd: string) {
     try {
@@ -81,13 +83,13 @@ export async function executeTool(name: ToolName, input: any, cwd: string) {
             }
 
             case "run_bash": {
-                const result = await $`${{ raw: input.command }}`.cwd(cwd).nothrow().quiet();
+                const { out, err, exitCode, timedOut } = await runCommand(input.command, cwd);
+                const note = timedOut
+                    ? `\n(stopped after ${COMMAND_TIMEOUT_MINUTES} minutes: the command did not finish. It may be waiting for input or running forever, like a dev server.)`
+                    : "";
+                const body = `stdout:\n${out}\nstderr:\n${err}${note}\n(exit code ${exitCode})`;
 
-                const out = result.stdout.toString();
-                const err = result.stderr.toString();
-                const body = `stdout:\n${out}\nstderr:\n${err}\n(exit code ${result.exitCode})`;
-
-                return { output: body, isError: result.exitCode !== 0 };
+                return { output: body, isError: timedOut || exitCode !== 0 };
             }
 
             default: {
@@ -97,6 +99,34 @@ export async function executeTool(name: ToolName, input: any, cwd: string) {
     } catch (err: any) {
         return { output: String(err?.message ?? err), isError: true };
     }
+}
+
+async function runCommand(command: string, cwd: string) {
+    const proc = Bun.spawn(["bash", "-c", command], {
+        cwd,
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+        detached: true,
+        env: { ...process.env, CI: "1", npm_config_yes: "true", NO_COLOUR: "1" },
+    });
+
+    let timedOut = false;
+    const timer = setTimeout(() => {
+        timedOut = true;
+        try {
+            process.kill(-proc.pid, "SIGKILL");
+        } catch {}
+    }, COMMAND_TIMEOUT_MINUTES * 60_000);
+
+    const [out, err, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+    ]);
+    clearTimeout(timer);
+
+    return { out, err, exitCode, timedOut };
 }
 
 // What a tool is about to change, so the UI can show it and ask first
@@ -135,6 +165,7 @@ export async function describeChange(
         }
 
         case "run_bash":
+            if (isReadOnlyCommand(input.command)) return null;
             return { tool: name, command: input.command };
 
         default:
