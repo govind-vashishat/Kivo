@@ -1,8 +1,10 @@
 # Kivo
 
-A minimal terminal coding agent written in TypeScript, without an agent framework.
+A terminal coding agent written in TypeScript, without an agent framework.
 
-Kivo reads and edits files in a project, runs shell commands, and uses the results to decide what to do next. The implementation is intentionally small (around 600 lines) so the full agent loop can be read end to end.
+Kivo reads and edits files in your project, runs shell commands, and uses the results to decide what to do next. It shows you a diff and asks before every change.
+
+![Kivo in the terminal](https://raw.githubusercontent.com/govind-vashishat/Kivo/main/docs/images/screenshot.png)
 
 ```bash
 kivo "the tests in test.js are failing, find and fix the bug"
@@ -10,9 +12,7 @@ kivo "the tests in test.js are failing, find and fix the bug"
 
 ## Installation
 
-Kivo requires [Bun](https://bun.sh) 1.1 or later and an OpenAI API key.
-
-### npm
+Kivo needs [Bun](https://bun.sh) 1.1 or later and an OpenAI API key.
 
 ```bash
 npm install -g kivoforge
@@ -20,7 +20,7 @@ npm install -g kivoforge
 bun install -g kivoforge
 ```
 
-The npm package is named `kivoforge` and installs the `kivo` command.
+The npm package is `kivoforge`; the command it installs is `kivo`.
 
 ### From source
 
@@ -33,61 +33,67 @@ bun link
 
 ### Standalone binary
 
-To build a single executable that runs without Bun installed:
-
 ```bash
 bun run build
 ./kivo --help
 ```
 
-This produces a self-contained binary (~78 MB) for the current platform.
+This builds a single executable (about 100 MB) for your platform that runs without Bun installed.
 
 ## Configuration
-
-Set your API key in the environment:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 ```
 
-Alternatively, create a `.env` file in the directory where you run `kivo`:
+Or put it in a `.env` file in the folder you run `kivo` from.
 
-```
-OPENAI_API_KEY=sk-...
-```
+| Variable         | Default            | Description                                    |
+| ---------------- | ------------------ | ---------------------------------------------- |
+| `OPENAI_API_KEY` | (required)         | Your OpenAI API key                            |
+| `KIVO_MODEL`     | `gpt-5`            | Any OpenAI model, e.g. `gpt-5-mini`            |
+| `KIVO_REASONING` | provider default   | Reasoning effort, e.g. `low`, `medium`, `high` |
+| `DEBUG`          | off                | Set to `1` to show token usage for every step  |
 
 ## Usage
 
 ```bash
-kivo              # start an interactive session
-kivo "<task>"     # run a single task and exit
-kivo --help       # show usage
+kivo                  # start an interactive session
+kivo "<task>"         # run one task and exit
+kivo --yes "<task>"   # run without asking for approval (also -y)
+kivo --help           # show usage
 ```
 
-Kivo operates on the current working directory. Run it from the root of the project you want it to work on.
+Kivo works in the current directory. Run it from the root of the project you want it to work on.
 
-> **Note:** Kivo executes shell commands and file edits proposed by the model without asking for confirmation. Use it in a directory under version control.
+### Approvals
+
+Before Kivo writes or edits a file, it shows the diff and asks `y` / `n`. Before it runs a command, it shows the command and asks the same. If you say no, the model is told and asks what you want instead.
+
+Commands that only read, such as `ls`, `cat`, `grep` or `git status`, run without asking. Anything that chains, redirects or could write still asks. `--yes` turns approvals off, for scripts and CI.
+
+Shell commands run without a terminal: they get no input, most tools are told to skip their prompts, and a command is stopped after 5 minutes. A command can never hang Kivo waiting for an answer.
 
 ### Session commands
 
-| Command  | Description                   |
-| -------- | ----------------------------- |
-| `/clear` | Reset the conversation        |
-| `/help`  | Show available commands       |
-| `/exit`  | Quit                          |
+| Command  | Description            |
+| -------- | ---------------------- |
+| `/clear` | Reset the conversation |
+| `/help`  | Show available commands |
+| `/exit`  | Quit                   |
 
-In an interactive session, conversation context persists across prompts. Single-task runs start with a fresh context.
+In a session, the conversation carries over between prompts. A single-task run starts fresh.
 
 ## How it works
 
-Kivo runs a single loop:
+Kivo runs one loop:
 
-1. Send the conversation and tool definitions to the model.
-2. If the response contains no tool calls, the task is complete.
-3. Otherwise, execute each tool call, append the results to the conversation, and repeat.
+1. Send the conversation and the tool definitions to the model.
+2. If the response has no tool calls, the task is done.
+3. Otherwise, run each tool call (asking first if it changes something), add the results to the conversation, and repeat.
 
 ```
-user task ──▶ ┌─────────────────────────────┐
+user task ──▶ ┌──────────────────────────────┐
               │  model call (+ tool schemas) │◀────┐
               └──────────────┬───────────────┘     │
                              │                     │
@@ -95,42 +101,46 @@ user task ──▶ ┌───────────────────
                     │            │                 │
                    no           yes                │
                     │            │                 │
-                   done    run tools, append       │
-                           results to context ─────┘
+                   done    approve, run tools,     │
+                           append results ─────────┘
 ```
+
+The Vercel AI SDK is used only to call the model. The loop, tools, approvals and context are Kivo's own code.
 
 ### Error handling
 
-Tool failures are returned to the model as tool output rather than raised as exceptions. A failed edit, a missing file, or a non-zero exit code becomes part of the conversation, and the model can adjust on the next step. There is no separate retry mechanism.
+Tool failures go back to the model as tool output instead of being thrown. A failed edit, a missing file or a non-zero exit code becomes part of the conversation, and the model adjusts on the next step.
 
-### Context management
+### Context
 
-Kivo does not use the Responses API's server-side conversation state (`previous_response_id`). The full conversation is held in `ContextManager` and sent with each request, which keeps context handling, including future compaction, under the application's control.
+The full conversation is kept in `ContextManager` and sent with every request, instead of relying on server-side conversation state. That keeps context handling, including the planned compaction, in Kivo's control.
 
 ### Tools
 
-| Tool         | Description                                                           |
-| ------------ | --------------------------------------------------------------------- |
-| `read_file`  | Read the contents of a file                                           |
-| `write_file` | Create or overwrite a file                                            |
-| `edit_file`  | Replace an exact snippet; fails unless `old_text` matches exactly once |
-| `run_bash`   | Run a shell command in the working directory; returns stdout, stderr, and exit code |
+| Tool         | Description                                                                 |
+| ------------ | --------------------------------------------------------------------------- |
+| `read_file`  | Read a file                                                                 |
+| `write_file` | Create or overwrite a file                                                  |
+| `edit_file`  | Replace an exact snippet; fails unless `old_text` matches exactly once      |
+| `run_bash`   | Run a shell command in the project folder; returns stdout, stderr and exit code |
 
-`edit_file` requires a unique match so that ambiguous edits fail instead of applying to the wrong location.
+`edit_file` requires a unique match, so an ambiguous edit fails instead of landing in the wrong place.
 
 ### Events
 
-The agent core in `src/agent/` has no dependency on the CLI. It emits a typed event stream, which the CLI and the eval runner each consume independently.
+The agent core in `src/agent/` imports nothing from the UI. It emits a typed event stream that the terminal UI and the eval runner each consume.
 
 ```ts
 export type AgentEvent =
+    | { type: "turn_start"; step: number }
     | { type: "text_delta"; text: string }
+    | { type: "usage"; step: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number }
     | { type: "tool_start"; name: string; input: unknown; id: string }
     | { type: "tool_result"; id: string; output: string; isError: boolean }
     | { type: "turn_end"; stopReason: string }
     | { type: "error"; message: string }
     | { type: "thinking_start" }
-    | { type: "thinking_end" }
+    | { type: "thinking_end" };
 ```
 
 ## Project structure
@@ -138,48 +148,57 @@ export type AgentEvent =
 ```
 src/
   agent/
-    events.ts     AgentEvent types
-    loop.ts       runAgent: the agent loop
-    tools.ts      tool definitions and executor
-    context.ts    ContextManager: conversation state
+    loop.ts        runAgent: the agent loop and system prompt
+    tools.ts       tool definitions, executor, approval requests
+    readonly.ts    which shell commands can run without asking
+    context.ts     ContextManager: conversation state
+    events.ts      AgentEvent types
   cli/
-    index.ts      entry point (single task or session)
-    session.ts    interactive session
-    render.ts     terminal output
+    index.ts       entry point and flags
+    render.ts      error messages, debug event printer
+    ui/            terminal UI built with Ink (React for the terminal)
+      App.tsx      state, keyboard, agent events
+      views.tsx    transcript items, tool lines, approval prompt, input
+      DiffView.tsx diffs with line numbers
+      Banner.tsx   logo and header
+      theme.ts     colours
 bin/
-  kivo.mjs        launcher used by the npm package
+  kivo.mjs         launcher used by the npm package
 evals/
-  runner.ts       evaluation harness
-  sandboxes/      test repositories
+  runner.ts        evaluation harness
+  sandboxes/       small projects with known bugs
 ```
 
 ## Evaluation
 
-The `evals/` directory contains small repositories with known bugs. Each sandbox includes a `task.json` (the prompt and a verification command) and a `test.js` that checks the fix.
+`evals/` holds small projects with known bugs. Each sandbox has a `task.json` (the prompt and a verification command) and a `test.js` that checks the fix.
 
 ```bash
-bun run eval
+bun run eval              # every sandbox once
+bun run eval 04 --runs 3  # sandboxes matching "04", three runs each
 ```
 
-Each sandbox is copied to a temporary directory, the agent runs against the copy, and the verification command determines pass or fail. Results are appended to `eval_history.json`. Running the evals requires Node.js.
+Each sandbox is copied to a temporary folder and the agent runs on the copy. `test.js` is restored before verifying, so the agent can't pass by editing the test. Every run records pass or fail, steps, peak, total and cached input tokens, output tokens, model, reasoning effort and git commit to `evals/eval_history.json`. With `--runs`, the runner prints the mean and range per sandbox, because a single run of an agent is not a reliable number. Running the evals needs Node.js.
 
-Current results:
+Results with `gpt-5-mini`, low reasoning, 3 runs each:
 
-| Sandbox           | Task                               | Result |
-| ----------------- | ---------------------------------- | ------ |
-| `01-syntax-error` | Fix an unparseable file            | Pass   |
-| `02-failing-test` | Fix an off-by-one error            | Pass   |
-| `03-multi-file`   | Fix incorrect prices across files  | Pass   |
+| Sandbox               | Task                                               | Passed | Avg input tokens |
+| --------------------- | -------------------------------------------------- | ------ | ---------------- |
+| `01-syntax-error`     | Fix a file that doesn't parse                      | 3/3    | ~2.4k            |
+| `02-failing-test`     | Fix an off-by-one error                            | 3/3    | ~3.0k            |
+| `03-multi-file`       | Fix wrong prices across files                      | 3/3    | ~5.8k            |
+| `04-invoice-currency` | Trace a currency bug through a six-module invoicing system | 3/3 | ~25k        |
 
-These tasks are intentionally small. Longer tasks are planned to exercise context management.
+Total input tokens grow with the square of the number of steps, because the whole conversation is re-sent every turn. Compaction is the next step, and these evals are how it will be judged.
 
 ## Roadmap
 
-- Context compaction in `ContextManager`, measured against the eval suite
-- Longer, multi-step eval tasks
-- Streaming responses
-- Interrupting a running task with Ctrl-C
-- Web UI built on the event stream
+- **v0.2 Long tasks:** longer eval sandboxes, then context compaction, measured with and without
+- **v0.3 Any model:** a `--model` flag across providers, the eval suite run on several models, a project instructions file
+- **v0.4 Smoother terminal:** streaming output, Ctrl-C to interrupt a running task
+- **v0.5 Knows your codebase:** a repo map, measured as fewer exploration steps
+- **v0.6 Web UI:** a local server streaming the same events to a browser
+- Later: image input, memory across sessions
 
 ## License
 
