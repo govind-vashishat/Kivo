@@ -7,7 +7,8 @@ import type { ApprovalRequest } from "../../agent/tools";
 import { describeError } from "../render";
 import { ApprovalPrompt, Input, type Item, ItemView, Spinner, ToolLine } from "./views";
 
-const HELP = ` /clear   start a fresh conversation
+const HELP = ` /auto    turn auto-approve on or off
+ /clear   start a fresh conversation
  /help    show this
  /exit    quit`;
 
@@ -27,17 +28,23 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
     const [busy, setBusy] = useState(false);
     const [pending, setPending] = useState<Pending | null>(null);
     const [running, setRunning] = useState<{ name: string; input: unknown } | null>(null);
-    const [draft, setDraft] = useState(""); // what's typed in the input box
+    const [draft, setDraft] = useState("");
+    const [auto, setAuto] = useState(autoApprove);
 
     const context = useRef(new ContextManager()); // one conversation per session
     const toolStarts = useRef(new Map<string, { name: string; input: unknown }>());
     // The pending approval also lives in a ref, so a keypress always sees the latest one
     const pendingRef = useRef<Pending | null>(null);
+    const autoRef = useRef(autoApprove);
+    const setAutoApprove = (on: boolean) => {
+        autoRef.current = on;
+        setAuto(on);
+    };
 
     const status = [
         process.env.KIVO_MODEL ?? "gpt-5",
         `${process.env.KIVO_REASONING ?? "default"} reasoning`,
-        autoApprove ? "auto-approve on" : "approvals on",
+        auto ? "auto-approve on" : "approvals on",
     ].join(" ");
 
     const add = (item: Item) => setItems((prev) => [...prev, item]);
@@ -79,7 +86,7 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
 
     // Called by the agent before a change; resolves when the user presses y or n
     const approve = (request: ApprovalRequest): Promise<boolean> => {
-        if (autoApprove) {
+        if (autoRef.current) {
             add({ kind: "change", request, approved: true });
             return Promise.resolve(true);
         }
@@ -124,6 +131,14 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
         if (!text) return;
         if (text === "/exit" || text === "/quit") return exit();
         if (text === "/help") return add({ kind: "info", text: HELP });
+        if (text === "/auto") {
+            const on = !autoRef.current;
+            setAutoApprove(on);
+            return add({
+                kind: "info",
+                text: on ? "auto-approve on: changes run without asking" : "auto-approve off",
+            });
+        }
         if (text === "/clear") {
             context.current = new ContextManager();
             return add({ kind: "info", text: "(conversation cleared)" });
@@ -139,6 +154,14 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             if (pendingRef.current) {
                 if (input === "y" || input === "Y") decide(true);
                 if (input === "n" || input === "N") decide(false);
+                if (input === "a" || input === "A") {
+                    setAutoApprove(true);
+                    decide(true);
+                    add({
+                        kind: "info",
+                        text: "auto-approve on for this session (/auto to turn off)",
+                    });
+                }
                 return;
             }
             if (busy || initialTask) return; // agent is working: ignore typing

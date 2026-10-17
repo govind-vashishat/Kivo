@@ -221,7 +221,11 @@ export function ApprovalPrompt({ request }: { request: ApprovalRequest }) {
                 <Text backgroundColor={theme.key} color={theme.foreground} bold>
                     {" n "}
                 </Text>
-                <Text color={theme.mute}> no</Text>
+                <Text color={theme.mute}> no </Text>
+                <Text backgroundColor={theme.key} color={theme.foreground} bold>
+                    {" a "}
+                </Text>
+                <Text color={theme.mute}> yes to all</Text>
             </Box>
         </Box>
     );
