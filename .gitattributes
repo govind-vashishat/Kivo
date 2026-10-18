@@ -1,0 +1,3 @@
+# Eval sandboxes are test fixtures for the agent, not Kivo's source code.
+# Keep them out of GitHub's language stats.
+evals/sandboxes/** linguist-vendored
