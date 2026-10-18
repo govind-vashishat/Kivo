@@ -1,0 +1,10 @@
+[
+    { "id": "u_01", "plan": "pro", "country": "IN" },
+    { "id": "u_02", "plan": "free", "country": "US" },
+    { "id": "u_03", "plan": "team", "country": "DE" },
+    { "id": "u_04", "plan": "pro", "country": "JP" },
+    { "id": "u_05", "plan": "free", "country": "IN" },
+    { "id": "u_06", "plan": "team", "country": "US" },
+    { "id": "u_07", "plan": "pro", "country": "DE" },
+    { "id": "u_08", "plan": "free", "country": "US" }
+]
