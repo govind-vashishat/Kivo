@@ -1,0 +1,18 @@
+{
+    "warehouses": [
+        { "id": "EAST", "name": "Newark, NJ" },
+        { "id": "WEST", "name": "Reno, NV" }
+    ],
+    "stock": {
+        "EAST": {
+            "KB-MECH": 10, "MS-WL": 25, "WEB-4K": 5, "HUB-C7": 1, "CBL-C2": 40,
+            "STD-LAP": 6, "MAT-XL": 8, "LMP-LED": 4, "ARM-MON": 2, "STK-NOTE": 100,
+            "MON-27": 3, "HS-PRO": 6, "SPK-MINI": 10, "BK-REFAC": 12, "BK-ALGO": 3
+        },
+        "WEST": {
+            "KB-MECH": 4, "MS-WL": 10, "WEB-4K": 2, "HUB-C7": 6, "CBL-C2": 20,
+            "STD-LAP": 2, "MAT-XL": 5, "LMP-LED": 0, "ARM-MON": 5, "STK-NOTE": 50,
+            "MON-27": 4, "HS-PRO": 3, "SPK-MINI": 0, "BK-REFAC": 4, "BK-ALGO": 6
+        }
+    }
+}

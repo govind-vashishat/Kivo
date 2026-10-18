@@ -1,0 +1,6 @@
+{
+    "id": "06-fulfillment-tickets",
+    "prompt": "This repo runs our nightly order fulfillment (node src/index.js). Work through the four open tickets in TICKETS.md (FUL-101 to FUL-104). `node test.js` has regression tests tagged with each ticket id; make every test pass without breaking the ones that already pass. Do not modify test.js or anything in data/.",
+    "verifyCommand": "node test.js",
+    "maxSteps": 60
+}

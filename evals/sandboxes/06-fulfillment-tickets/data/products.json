@@ -1,0 +1,41 @@
+[
+    { "sku": "KB-MECH", "type": "simple", "name": "Mechanical keyboard", "category": "peripherals", "priceCents": 8900, "weightGrams": 1100 },
+    { "sku": "MS-WL", "type": "simple", "name": "Wireless mouse", "category": "peripherals", "priceCents": 2900, "weightGrams": 120 },
+    { "sku": "WEB-4K", "type": "simple", "name": "4K webcam", "category": "peripherals", "priceCents": 6900, "weightGrams": 250 },
+    { "sku": "HUB-C7", "type": "simple", "name": "USB-C hub, 7 ports", "category": "accessories", "priceCents": 3900, "weightGrams": 180 },
+    { "sku": "CBL-C2", "type": "simple", "name": "USB-C cable, 2 m", "category": "accessories", "priceCents": 1200, "weightGrams": 60 },
+    { "sku": "STD-LAP", "type": "simple", "name": "Laptop stand", "category": "desk", "priceCents": 4500, "weightGrams": 1400 },
+    { "sku": "MAT-XL", "type": "simple", "name": "Desk mat XL", "category": "desk", "priceCents": 2500, "weightGrams": 600 },
+    { "sku": "LMP-LED", "type": "simple", "name": "LED desk lamp", "category": "desk", "priceCents": 5900, "weightGrams": 1300 },
+    { "sku": "ARM-MON", "type": "simple", "name": "Monitor arm", "category": "desk", "priceCents": 7900, "weightGrams": 3100 },
+    { "sku": "STK-NOTE", "type": "simple", "name": "Sticky notes, 12 pack", "category": "desk", "priceCents": 400, "weightGrams": 100 },
+    { "sku": "MON-27", "type": "simple", "name": "27 inch monitor", "category": "displays", "priceCents": 27900, "weightGrams": 6200 },
+    { "sku": "HS-PRO", "type": "simple", "name": "Headset Pro", "category": "audio", "priceCents": 9900, "weightGrams": 350 },
+    { "sku": "SPK-MINI", "type": "simple", "name": "Mini speaker", "category": "audio", "priceCents": 3500, "weightGrams": 450 },
+    { "sku": "BK-REFAC", "type": "simple", "name": "Refactoring Field Notes (book)", "category": "books", "priceCents": 3200, "weightGrams": 500 },
+    { "sku": "BK-ALGO", "type": "simple", "name": "Algorithms Pocket Guide (book)", "category": "books", "priceCents": 4100, "weightGrams": 800 },
+    {
+        "sku": "BND-DESK",
+        "type": "bundle",
+        "name": "Desk setup bundle",
+        "category": "bundles",
+        "priceCents": 9900,
+        "components": [
+            { "sku": "STD-LAP", "qty": 1 },
+            { "sku": "HUB-C7", "qty": 1 },
+            { "sku": "MAT-XL", "qty": 1 }
+        ]
+    },
+    {
+        "sku": "BND-STREAM",
+        "type": "bundle",
+        "name": "Streaming kit",
+        "category": "bundles",
+        "priceCents": 17900,
+        "components": [
+            { "sku": "WEB-4K", "qty": 1 },
+            { "sku": "HS-PRO", "qty": 1 },
+            { "sku": "CBL-C2", "qty": 2 }
+        ]
+    }
+]
