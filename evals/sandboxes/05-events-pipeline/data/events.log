@@ -1,0 +1,43 @@
+# collector export, 2026-09-30 .. 2026-10-03
+# format: <timestamp> id=<id> user=<user> event=<event> [amount=<decimal> currency=<code>]
+
+2026-10-01T06:05:00+05:30 id=e001 user=u_01 event=page_view
+2026-10-01T09:12:00+05:30 id=e002 user=u_01 event=purchase amount=1499.00 currency=INR
+2026-10-01T10:40:00+02:00 id=e003 user=u_03 event=SIGNUP
+2026-10-01T11:02:00+02:00 id=e004 user=U_03 event=Purchase amount=29.95 currency=EUR
+2026-10-01T08:30:00+09:00 id=e005 user=u_04 event=order amount=2980 currency=JPY
+2026-10-01T07:45:00-07:00 id=e006 user=u_02 event=sign_up
+2026-10-01T09:20:00-07:00 id=e007 user=u_02 event=purchase amount=19.99 currency=USD
+2026-10-01T09:20:00-07:00 id=e007 user=u_02 event=purchase amount=19.99 currency=USD
+2026-10-01T14:15:00+02:00 id=e008 user=u_07 event=pageview
+2026-10-01T15:30:00+02:00 id=e009 user=u_07 event=purchase amount=9.95 currency=EUR
+2026-10-01T12:00:00-07:00 id=e010 user=u_06 event=purchase amount=4.35 currency=USD
+2026-10-01T22:10:00+05:30 id=e011 user=u_05 event=register
+2026-10-01T23:55:00+02:00 id=e012 user=u_03 event=purchase amount=0.29 currency=EUR
+2026-10-01T20:15:00-07:00 id=e013 user=u_06 event=purchase amount=49.99 currency=USD
+2026-10-01T21:40:00-07:00 id=e014 user=u_08 event=signup
+2026-10-02T03:10:00+05:30 id=e015 user=u_05 event=purchase amount=249.50 currency=INR
+2026-10-02T04:45:00+05:30 id=e016 user=u_01 event=refund amount=1499.00 currency=INR
+2026-10-02T07:30:00+09:00 id=e017 user=u_04 event=purchase amount=1980 currency=JPY
+2026-10-02T08:00:00+09:00 id=e018 user=u_04 event=page_view
+2026-10-02T09:00:00 id=e019 user=u_02 event=purchase amount=5.00 currency=USD
+2026-10-02T10:05:00+02:00 id=e020 user=u_07 event=purchase amount=19.90 currency=EUR
+2026-10-02T11:11:00+02:00 id=e021 user=u_03 event=click
+2026-10-02T13:25:00-07:00 id=e022 user=u_08 event=purchase amount=12.30 currency=USD
+2026-10-02T14:00:00-07:00 id=e023 user=u_99 event=purchase amount=8.15 currency=USD
+2026-10-02T16:45:00+02:00 id=e024 user=u_07 event=refund amount=9.95 currency=EUR
+2026-10-02T19:30:00+05:30 id=e025 user=u_01 event=purchase amount=1299.99 currency=INR
+2026-10-02T23:20:00+02:00 id=e026 user=u_03 event=purchase amount=29.95 currency=EUR
+2026-10-02T18:05:00-07:00 id=e027 user=u_02 event=purchase amount=0.57 currency=USD
+2026-10-02T22:50:00-07:00 id=e028 user=u_06 event=signup
+2026-10-02T23:59:00-07:00 id=e029 user=u_06 event=purchase amount=99.99 currency=USD
+2026-10-03T00:30:00+05:30 id=e030 user=u_05 event=purchase amount=599.95 currency=INR
+2026-10-03T05:15:00+09:00 id=e031 user=u_04 event=purchase amount=4980 currency=JPY
+2026-10-03T06:00:00+09:00 id=e032 user=u_04 event=refund amount=1980 currency=JPY
+2026-10-03T09:40:00+02:00 id=e033 user=u_07 event=purchase amount=59.90 currency=EUR
+2026-10-03T10:20:00+02:00 id=e034 user=U_07 event=page_view
+2026-10-03T08:15:00-07:00 id=e035 user=u_08 event=purchase amount=24.99 currency=GBP
+2026-10-03T11:45:00-07:00 id=e036 user=u_02 event=refund amount=19.99 currency=USD
+2026-10-03T12:30:00+05:30 id=e037 user=u_01 event=page_view
+2026-10-03T16:00:00Z id=e038 user=u_03 event=purchase amount=14.95 currency=EUR
+2026-10-03T17:25:00-07:00 id=e039 user=u_06 event=purchase amount=1.15 currency=USD

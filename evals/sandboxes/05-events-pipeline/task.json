@@ -1,0 +1,6 @@
+{
+    "id": "05-events-pipeline",
+    "prompt": "Finance says the daily metrics report doesn't match their numbers. The report is built by a 5-stage pipeline in src/ (parse -> normalize -> enrich -> aggregate -> report). Run `node test.js` to see which cases fail, find the root cause and fix it. Do not modify test.js or anything in data/.",
+    "verifyCommand": "node test.js",
+    "maxSteps": 40
+}
