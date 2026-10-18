@@ -1,0 +1,29 @@
+{
+    "runDate": "2026-11-25",
+    "orders": [
+        {"id": "o-1001", "placedAt": "2026-11-25T09:05:00Z", "customer": "Ana Ruiz", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "KB-MECH", "qty": 1}, {"sku": "MS-WL", "qty": 1}]},
+        {"id": "o-1002", "placedAt": "2026-11-25T09:40:00Z", "customer": "Ben Ortiz", "shipTo": {"region": "west"}, "service": "standard", "promo": "WELCOME10", "items": [{"sku": "HS-PRO", "qty": 1}, {"sku": "SPK-MINI", "qty": 1}]},
+        {"id": "o-1003", "placedAt": "2026-11-25T10:15:00Z", "customer": "Chen Wei", "shipTo": {"region": "central"}, "service": "standard", "items": [{"sku": "STK-NOTE", "qty": 3}, {"sku": "CBL-C2", "qty": 1}]},
+        {"id": "o-1004", "placedAt": "2026-11-25T10:50:00Z", "customer": "Dana Kim", "shipTo": {"region": "east"}, "service": "express", "items": [{"sku": "MON-27", "qty": 1}, {"sku": "ARM-MON", "qty": 1}]},
+        {"id": "o-1005", "placedAt": "2026-11-25T11:20:00Z", "customer": "Eli Novak", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "BND-DESK", "qty": 1}, {"sku": "HUB-C7", "qty": 1}]},
+        {"id": "o-1006", "placedAt": "2026-11-25T11:45:00Z", "customer": "Fay Moreau", "shipTo": {"region": "west"}, "service": "standard", "promo": "PAIRUP", "items": [{"sku": "KB-MECH", "qty": 1}, {"sku": "MS-WL", "qty": 2}, {"sku": "WEB-4K", "qty": 1}]},
+        {"id": "o-1007", "placedAt": "2026-11-25T12:10:00Z", "customer": "Gus Patel", "shipTo": {"region": "central"}, "service": "standard", "items": [{"sku": "FAKE-SKU", "qty": 1}]},
+        {"id": "o-1008", "placedAt": "2026-11-25T12:30:00Z", "customer": "Hana Sato", "shipTo": {"region": "east"}, "service": "standard", "promo": "SAVE15", "items": [{"sku": "LMP-LED", "qty": 1}, {"sku": "STD-LAP", "qty": 1}, {"sku": "MAT-XL", "qty": 1}]},
+        {"id": "o-1009", "placedAt": "2026-11-25T13:00:00Z", "customer": "Ivan Petrov", "shipTo": {"region": "west"}, "service": "standard", "items": [{"sku": "ARM-MON", "qty": 9}]},
+        {"id": "o-1010", "placedAt": "2026-11-25T13:25:00Z", "customer": "Jo Adams", "shipTo": {"region": "east"}, "service": "standard", "promo": "PAIRUP", "items": [{"sku": "MS-WL", "qty": 3}]},
+        {"id": "o-1011", "placedAt": "2026-11-25T13:50:00Z", "customer": "Kai Lund", "shipTo": {"region": "west"}, "service": "express", "promo": "WELCOME10", "items": [{"sku": "BK-ALGO", "qty": 2}, {"sku": "BK-REFAC", "qty": 1}]},
+        {"id": "o-1012", "placedAt": "2026-11-25T14:20:00Z", "customer": "Lea Costa", "shipTo": {"region": "central"}, "service": "standard", "promo": "DESKWEEK", "items": [{"sku": "STD-LAP", "qty": 1}, {"sku": "LMP-LED", "qty": 1}, {"sku": "STK-NOTE", "qty": 2}]},
+        {"id": "o-1013", "placedAt": "2026-11-25T14:45:00Z", "customer": "Max Weber", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "BND-STREAM", "qty": 1}, {"sku": "CBL-C2", "qty": 1}]},
+        {"id": "o-1014", "placedAt": "2026-11-25T15:10:00Z", "customer": "Nia Brown", "shipTo": {"region": "west"}, "service": "standard", "items": [{"sku": "HUB-C7", "qty": 2}, {"sku": "CBL-C2", "qty": 2}]},
+        {"id": "o-1015", "placedAt": "2026-11-25T15:30:00Z", "customer": "Omar Haddad", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "MON-27", "qty": 2}, {"sku": "ARM-MON", "qty": 2}]},
+        {"id": "o-1016", "placedAt": "2026-11-25T16:05:00Z", "customer": "Pia Rossi", "shipTo": {"region": "west"}, "service": "standard", "promo": "PAIRUP", "items": [{"sku": "HS-PRO", "qty": 1}, {"sku": "SPK-MINI", "qty": 1}]},
+        {"id": "o-1017", "placedAt": "2026-11-25T16:40:00Z", "customer": "Quinn Lee", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "KB-MECH", "qty": 0}]},
+        {"id": "o-1018", "placedAt": "2026-11-25T17:05:00Z", "customer": "Rae Silva", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "STK-NOTE", "qty": 5}]},
+        {"id": "o-1019", "placedAt": "2026-11-25T17:30:00Z", "customer": "Sam Okafor", "shipTo": {"region": "west"}, "service": "standard", "promo": "PAIRUP", "items": [{"sku": "WEB-4K", "qty": 2}, {"sku": "MS-WL", "qty": 1}, {"sku": "KB-MECH", "qty": 1}]},
+        {"id": "o-1020", "placedAt": "2026-11-25T18:15:00Z", "customer": "Tess Muller", "shipTo": {"region": "central"}, "service": "express", "items": [{"sku": "LMP-LED", "qty": 3}, {"sku": "BK-REFAC", "qty": 2}]},
+        {"id": "o-1021", "placedAt": "2026-11-25T19:00:00Z", "customer": "Uma Iyer", "shipTo": {"region": "west"}, "service": "standard", "promo": "WELCOME10", "items": [{"sku": "MON-27", "qty": 1}, {"sku": "HUB-C7", "qty": 1}, {"sku": "CBL-C2", "qty": 1}]},
+        {"id": "o-1022", "placedAt": "2026-11-25T20:30:00Z", "customer": "Vik Shah", "shipTo": {"region": "east"}, "service": "standard", "items": [{"sku": "BND-DESK", "qty": 2}, {"sku": "STK-NOTE", "qty": 1}]},
+        {"id": "o-1023", "placedAt": "2026-11-25T21:45:00Z", "customer": "Wen Zhao", "shipTo": {"region": "central"}, "service": "standard", "promo": "BOGUS", "items": [{"sku": "MS-WL", "qty": 1}]},
+        {"id": "o-1024", "placedAt": "2026-11-25T23:10:00Z", "customer": "Yara Nasser", "shipTo": {"region": "west"}, "service": "standard", "promo": "PAIRUP", "items": [{"sku": "KB-MECH", "qty": 2}, {"sku": "WEB-4K", "qty": 1}, {"sku": "MS-WL", "qty": 1}, {"sku": "STK-NOTE", "qty": 4}]}
+    ]
+}

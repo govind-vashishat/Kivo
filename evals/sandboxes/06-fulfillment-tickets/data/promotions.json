@@ -1,0 +1,6 @@
+[
+    { "code": "WELCOME10", "type": "percent", "percent": 10, "minSubtotalCents": 3000 },
+    { "code": "SAVE15", "type": "fixed", "amountCents": 1500, "minSubtotalCents": 10000 },
+    { "code": "DESKWEEK", "type": "category_percent", "category": "desk", "percent": 20 },
+    { "code": "PAIRUP", "type": "bogo", "category": "peripherals", "percent": 50 }
+]
