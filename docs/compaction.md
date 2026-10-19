@@ -37,20 +37,32 @@ sandboxes 05 and 06.
 - **OpenCode** compacts late (window minus a ~20k reserve), summarizes the
   history with the same model and tools off, keeps the most recent ~8k tokens
   word for word, and updates the previous summary on later compactions.
-- **Claude Code** works in layers: first it clears old tool output without a
-  model call, and only summarizes when that isn't enough.
-- Both trigger rarely, because compacting changes the start of the
+- **Claude Code** works in layers: once the context passes a warning level it
+  clears old tool output without a model call, and only summarizes near the
+  full window (around 89%, per third-party analyses).
+- Both avoid compacting often, because compacting changes the start of the
   conversation and breaks the prompt cache.
+
+Kivo's design is inspired by Claude Code's layered approach. The thresholds
+below are Kivo's own starting points, to be tuned by the evals.
 
 ## Design
 
-Two layers, cheapest first. **v0.2 builds layer 1 only.** Layer 2 is built
-only if the evals show layer 1 isn't enough.
+Two layers, cheapest first. Each layer has **its own threshold**, because they
+solve different problems. **v0.2 builds layer 1 only.** Layer 2 is built only
+if the evals show it is needed.
+
+| | Layer 1: clear old tool output | Layer 2: summarize |
+|---|---|---|
+| Model call | none | yes |
+| What's lost | old outputs the model can re-read from disk | details the summary leaves out |
+| Solves | cost and quality | running out of room |
+| Triggers | early-ish, fixed token count | late, percentage of the window |
 
 ### Layer 1: clear old tool output (no model call)
 
-When the context is over a threshold, replace the text of old tool results
-with a short placeholder:
+When the context reaches the layer 1 threshold, replace the text of old tool
+results with a short placeholder:
 
 ```
 [cleared to save context: read_file src/dates.js, 2,940 chars. Run the tool again if you need it.]
@@ -66,8 +78,8 @@ Rules:
 - **Skip small outputs** (under ~500 chars). Clearing them saves almost
   nothing and loses information.
 - **Batch it.** When it triggers, clear everything eligible at once. The
-  context drops well below the threshold and stays quiet for a while. That is
-  one cache break, not one per turn.
+  context drops well below the threshold and stays quiet for many turns. That
+  is one cache break, not one per turn.
 - **Never clear twice.** Cleared results are skipped next time.
 
 A "turn" is one model response (an assistant message) plus the tool message
@@ -75,17 +87,28 @@ that follows it.
 
 ### Layer 2: summarize (later, only if needed)
 
-If the context is still over the threshold after layer 1, replace the oldest
-turns with one message containing a structured summary (goal, what's done,
-files changed, decisions, next steps) written by the model with tools off.
-Keep the last N turns word for word. Cut only between turns, never between a
-tool call and its result.
+When the context reaches a percentage of the model's window (around 85%),
+replace the oldest turns with one message containing a structured summary
+(goal, what's done, files changed, decisions, next steps), written by the
+model with tools off. Keep the last N turns word for word. Cut only between
+turns, never between a tool call and its result.
+
+This needs each model's window size, which fits with v0.3 (any model).
 
 ## When it triggers
 
 After every model call the loop already knows the real request size
-(`turn.inputTokens`). If that is at or above the threshold, compact before the
-next turn. There's no need to estimate tokens the way OpenCode does.
+(`turn.inputTokens`). There's no need to estimate tokens the way OpenCode
+does.
+
+- **Layer 1:** a fixed token count, because its job is cost, and cost depends
+  on how many tokens are resent, not on how big the window is.
+- **Layer 2:** a percentage of the window, because its job is to keep the task
+  from hitting the limit.
+
+Layer 1 should not fire too early either: every compaction breaks the cache
+once. Batching keeps that rare. The best layer 1 threshold is what #29 finds
+out.
 
 ## Where it lives
 
@@ -105,8 +128,11 @@ Environment variables for now, like `KIVO_MODEL` (flags come with #31):
 | Variable | Values | Default |
 |---|---|---|
 | `KIVO_COMPACT` | `off`, `clear` | `off` until evals show it helps |
-| `KIVO_COMPACT_AT` | input tokens | `100000` |
-| `KIVO_COMPACT_KEEP` | turns kept untouched | `3` |
+| `KIVO_CLEAR_AT` | input tokens | `40000` (starting guess) |
+| `KIVO_CLEAR_KEEP` | turns kept untouched | `3` |
+
+Layer 2 will get its own setting (for example `KIVO_SUMMARIZE_AT_PERCENT=85`)
+when it is built.
 
 The eval runner records the compaction settings in every `eval_history.json`
 record, so runs with and without compaction can never be mixed up.
@@ -117,7 +143,7 @@ Run sandboxes 05 and 06 with `--runs 5` or more, with the model and reasoning
 fixed:
 
 - `KIVO_COMPACT=off` (baseline)
-- `KIVO_COMPACT=clear`, `KIVO_COMPACT_AT=8000`, so it actually fires on these
+- `KIVO_COMPACT=clear`, `KIVO_CLEAR_AT=8000`, so it actually fires on these
   sandboxes
 
 Compare:
@@ -134,9 +160,10 @@ never single runs.
 
 ## Open questions
 
-- Which threshold and N give the best savings without hurting the pass rate?
+- What is the lowest layer 1 threshold where the savings outweigh the cache
+  break?
+- Which N (turns kept) gives the best savings without hurting the pass rate?
 - Is clearing tool results alone enough, or do large tool-call inputs (for
   example `write_file` content) also need clearing?
-- At this size, does the cache break cost more than clearing saves? If so,
-  that is a result too: compaction only pays off above a certain size, and the
-  default threshold should sit there.
+- If clearing doesn't pay off at this size, that is a result too: the default
+  threshold should sit where it starts paying off.
