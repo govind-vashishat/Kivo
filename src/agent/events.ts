@@ -14,6 +14,13 @@ export type AgentEvent =
     | { type: "tool_result"; id: string; output: string; isError: boolean }
     | { type: "turn_end"; stopReason: string }
     | { type: "error"; message: string }
+    | {
+          type: "compaction";
+          kind: "clear";
+          cleared: number;
+          charsBefore: number;
+          charsAfter: number;
+      }
     | { type: "thinking_start" }
     | { type: "thinking_end" };
 
