@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText, type ToolResultPart } from "ai";
+import { type CompactSettings, clearOldToolOutput, compactSettings } from "./compaction";
 import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
 import {
@@ -34,6 +35,7 @@ export interface RunResult {
     usage: TurnUsage[];
     model: string;
     reasoning: string;
+    compaction: CompactSettings & { count: number };
 }
 
 function systemPrompt(model: string): string {
@@ -50,7 +52,7 @@ Reply in plain text. The terminal does not render Markdown, so do not use **bold
 }
 
 export async function runAgent(opts: RunOptions): Promise<RunResult> {
-    const { task, cwd, maxSteps = 30, model = process.env.KIVO_MODEL ?? "gpt-5", onEvent } = opts;
+    const { task, cwd, maxSteps = 100, model = process.env.KIVO_MODEL ?? "gpt-5", onEvent } = opts;
     const reasoning = process.env.KIVO_REASONING ?? "provider-default";
     const emit = (e: AgentEvent) => onEvent?.(e);
 
@@ -58,6 +60,11 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     context.addUserMessage(task);
 
     const usage: TurnUsage[] = [];
+    const compaction = { ...compactSettings(), count: 0 };
+    const done = (stopReason: RunResult["stopReason"], steps: number) => {
+        emit({ type: "turn_end", stopReason: stopReason });
+        return { stopReason, steps, usage, model, reasoning, compaction };
+    };
 
     for (let step = 0; step < maxSteps; step++) {
         emit({ type: "turn_start", step: step + 1 });
@@ -88,8 +95,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         }
 
         if (result.toolCalls.length === 0) {
-            emit({ type: "turn_end", stopReason: "completed" });
-            return { stopReason: "completed", steps: step + 1, usage, model, reasoning };
+            return done("completed", step + 1);
         }
 
         const toolOutputs: ToolResultPart[] = [];
@@ -131,7 +137,15 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
             });
         }
         context.addToolOutput(toolOutputs);
+
+        if (compaction.mode === "clear" && turn.inputTokens >= compaction.clearAt) {
+            const { messages, result: stats } = clearOldToolOutput(context.getItems(), compaction);
+            if (stats.cleared > 0) {
+                context.replaceItems(messages);
+                compaction.count += 1;
+                emit({ type: "compaction", kind: "clear", ...stats });
+            }
+        }
     }
-    emit({ type: "turn_end", stopReason: "max_steps" });
-    return { stopReason: "max_steps", steps: maxSteps, usage, model, reasoning };
+    return done("max_steps", maxSteps);
 }

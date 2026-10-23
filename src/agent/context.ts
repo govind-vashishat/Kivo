@@ -22,4 +22,9 @@ export class ContextManager {
     getItems(): ModelMessage[] {
         return this.items;
     }
+
+    //replace all items with compact versiom -
+    replaceItems(items: ModelMessage[]) {
+        this.items = items;
+    }
 }

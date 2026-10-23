@@ -18,7 +18,7 @@ export interface ClearResult {
     charsAfter: number;
 }
 
-export function compactSetting(): CompactSettings {
+export function compactSettings(): CompactSettings {
     const clearAt = Number(process.env.KIVO_CLEAR_AT ?? DEFAULT_CLEAR_AT);
     const keepTurns = Number(process.env.KIVO_CLEAR_KEEP ?? DEFAULT_KEEP_TURNS);
     return {
