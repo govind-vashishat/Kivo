@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { $ } from "bun";
+import { type CompactSettings, compactSettings } from "../src/agent/compaction";
 import { runAgent } from "../src/agent/loop";
 import { renderEvent } from "../src/cli/render";
 
@@ -30,6 +31,8 @@ interface EvalRecord {
     totalInputTokens: number;
     totalCachedInputTokens: number;
     totalOutputTokens: number;
+    compaction: string;
+    compactions: number;
 }
 
 async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalRecord> {
@@ -51,6 +54,8 @@ async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalR
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalCachedInputTokens = 0;
+    let compaction = describeCompaction(compactSettings());
+    let compactions = 0;
 
     try {
         const result = await runAgent({
@@ -68,6 +73,8 @@ async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalR
         totalInputTokens = result.usage.reduce((sum, u) => sum + u.inputTokens, 0);
         totalOutputTokens = result.usage.reduce((sum, u) => sum + u.outputTokens, 0);
         totalCachedInputTokens = result.usage.reduce((sum, n) => sum + n.cachedInputTokens, 0);
+        compaction = describeCompaction(result.compaction);
+        compactions = result.compaction.count;
     } catch (err) {
         console.error(`  agent threw on ${manifest.id}:`, err);
     }
@@ -97,7 +104,14 @@ async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalR
         totalInputTokens,
         totalCachedInputTokens,
         totalOutputTokens,
+        compaction,
+        compactions,
     };
+}
+
+function describeCompaction(settings: CompactSettings): string {
+    if (settings.mode === "off") return "off";
+    return `clear@${settings.clearAt} keep${settings.keepTurns}`;
 }
 
 function mean(values: number[]) {
@@ -130,7 +144,7 @@ async function main() {
             process.stdout.write(`Running ${name} (${i}/${runs})... `);
             const record = await runOneTask(name, gitCommit);
             console.log(
-                `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok, cached ${record.totalCachedInputTokens})`,
+                `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok, cached ${record.totalCachedInputTokens}) compactions ${record.compactions}`,
             );
             results.push(record);
         }
@@ -140,8 +154,9 @@ async function main() {
             const passed = results.filter((r) => r.pass).length;
             const totals = results.map((r) => r.totalInputTokens);
             const peaks = results.map((r) => r.peakInputTokens);
+            const fresh = results.map((r) => r.totalInputTokens - r.totalCachedInputTokens);
             console.log(
-                `  => pass ${passed}/${runs}, total ${mean(totals)} (${Math.min(...totals)}–${Math.max(...totals)}), peak ${mean(peaks)} (${Math.min(...peaks)}–${Math.max(...peaks)})\n`,
+                `  => pass ${passed}/${runs}, total ${mean(totals)} (${Math.min(...totals)}–${Math.max(...totals)}), peak ${mean(peaks)} (${Math.min(...peaks)}–${Math.max(...peaks)}), fresh ${mean(fresh)} (${Math.min(...fresh)}–${Math.max(...fresh)})\n`,
             );
         }
     }

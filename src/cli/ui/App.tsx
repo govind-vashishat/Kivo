@@ -81,6 +81,12 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
             case "error":
                 add({ kind: "error", text: e.message });
                 break;
+            case "compaction":
+                add({
+                    kind: "info",
+                    text: `context: cleared ${e.cleared} old tool outputs (${e.charsBefore.toLocaleString("en-US")} → ${e.charsAfter.toLocaleString("en-US")} chars)`,
+                });
+                break;
         }
     };
 
