@@ -92,5 +92,10 @@ export function renderEvent(e: AgentEvent) {
         case "error":
             console.error(`\n${c.red}[error]${c.reset} ${e.message}`);
             break;
+        case "compaction":
+            console.log(
+                `${c.dim}context: cleared ${e.cleared} old tool outputs (${e.charsBefore} → ${e.charsAfter} chars)${c.reset}`,
+            );
+            break;
     }
 }
