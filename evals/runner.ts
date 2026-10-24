@@ -144,7 +144,7 @@ async function main() {
             process.stdout.write(`Running ${name} (${i}/${runs})... `);
             const record = await runOneTask(name, gitCommit);
             console.log(
-                `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok, cached ${record.totalCachedInputTokens}) compactions ${record.compactions}`,
+                `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok, out ${record.totalOutputTokens}, cached ${record.totalCachedInputTokens}) compactions ${record.compactions}`,
             );
             results.push(record);
         }
@@ -154,9 +154,10 @@ async function main() {
             const passed = results.filter((r) => r.pass).length;
             const totals = results.map((r) => r.totalInputTokens);
             const peaks = results.map((r) => r.peakInputTokens);
+            const outputs = results.map((r) => r.totalOutputTokens);
             const fresh = results.map((r) => r.totalInputTokens - r.totalCachedInputTokens);
             console.log(
-                `  => pass ${passed}/${runs}, total ${mean(totals)} (${Math.min(...totals)}–${Math.max(...totals)}), peak ${mean(peaks)} (${Math.min(...peaks)}–${Math.max(...peaks)}), fresh ${mean(fresh)} (${Math.min(...fresh)}–${Math.max(...fresh)})\n`,
+                `  => pass ${passed}/${runs}, total ${mean(totals)} (${Math.min(...totals)}–${Math.max(...totals)}), peak ${mean(peaks)} (${Math.min(...peaks)}–${Math.max(...peaks)}), fresh ${mean(fresh)} (${Math.min(...fresh)}–${Math.max(...fresh)}), out ${mean(outputs)} (${Math.min(...outputs)}–${Math.max(...outputs)})\n`,
             );
         }
     }
