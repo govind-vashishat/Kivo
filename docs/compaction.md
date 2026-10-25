@@ -1,6 +1,6 @@
 # Context compaction
 
-Status: design (v0.2, issue #27). Not implemented yet.
+Status: layer 1 implemented (v0.2, #28), off by default. Measured in #29.
 
 ## Problem
 
@@ -30,7 +30,7 @@ of room yet. It is about:
    less room.
 
 Goal for v0.2: **the same pass rate with less fresh input**, measured on
-sandboxes 05 and 06.
+sandbox 06.
 
 ## How other agents do it
 
@@ -44,25 +44,24 @@ sandboxes 05 and 06.
   conversation and breaks the prompt cache.
 
 Kivo's design is inspired by Claude Code's layered approach. The thresholds
-below are Kivo's own starting points, to be tuned by the evals.
+are Kivo's own, tuned by the evals below.
 
 ## Design
 
 Two layers, cheapest first. Each layer has **its own threshold**, because they
-solve different problems. **v0.2 builds layer 1 only.** Layer 2 is built only
-if the evals show it is needed.
+solve different problems. **v0.2 builds layer 1 only.**
 
 | | Layer 1: clear old tool output | Layer 2: summarize |
 |---|---|---|
 | Model call | none | yes |
 | What's lost | old outputs the model can re-read from disk | details the summary leaves out |
 | Solves | cost and quality | running out of room |
-| Triggers | early-ish, fixed token count | late, percentage of the window |
+| Triggers | fixed token count | percentage of the window |
 
 ### Layer 1: clear old tool output (no model call)
 
-When the context reaches the layer 1 threshold, replace the text of old tool
-results with a short placeholder:
+When a request reaches the layer 1 threshold, the text of old tool results is
+replaced with a short placeholder:
 
 ```
 [cleared to save context: read_file src/dates.js, 2,940 chars. Run the tool again if you need it.]
@@ -74,23 +73,23 @@ Rules:
   only the result's `value` text changes. The API requires every tool call to
   have a matching result, and the model can still see what it did.
 - **Keep the last N turns untouched** (default 3). The model never loses what
-  it was just working on.
-- **Skip small outputs** (under ~500 chars). Clearing them saves almost
+  it was just working on. (To be replaced by a token budget; see Next steps.)
+- **Skip small outputs** (under 500 chars). Clearing them saves almost
   nothing and loses information.
-- **Batch it.** When it triggers, clear everything eligible at once. The
-  context drops well below the threshold and stays quiet for many turns. That
-  is one cache break, not one per turn.
+- **Skip small savings.** If everything eligible adds up to less than 4,000
+  chars (~1k tokens), nothing is cleared: it isn't worth breaking the cache.
+- **Batch it.** When it triggers, everything eligible is cleared at once.
 - **Never clear twice.** Cleared results are skipped next time.
 
 A "turn" is one model response (an assistant message) plus the tool message
 that follows it.
 
-### Layer 2: summarize (later, only if needed)
+### Layer 2: summarize (not built)
 
 When the context reaches a percentage of the model's window (around 85%),
 replace the oldest turns with one message containing a structured summary
 (goal, what's done, files changed, decisions, next steps), written by the
-model with tools off. Keep the last N turns word for word. Cut only between
+model with tools off. Keep the recent turns word for word. Cut only between
 turns, never between a tool call and its result.
 
 This needs each model's window size, which fits with v0.3 (any model).
@@ -98,28 +97,27 @@ This needs each model's window size, which fits with v0.3 (any model).
 ## When it triggers
 
 After every model call the loop already knows the real request size
-(`turn.inputTokens`). There's no need to estimate tokens the way OpenCode
-does.
+(`turn.inputTokens`), so there is no need to estimate tokens.
 
 - **Layer 1:** a fixed token count, because its job is cost, and cost depends
   on how many tokens are resent, not on how big the window is.
 - **Layer 2:** a percentage of the window, because its job is to keep the task
   from hitting the limit.
 
-Layer 1 should not fire too early either: every compaction breaks the cache
-once. Batching keeps that rare. The best layer 1 threshold is what #29 finds
-out.
-
 ## Where it lives
 
-- `ContextManager.clearOldToolOutput({ keepTurns, minChars })` in
-  `src/agent/context.ts`. It walks the messages, edits old tool results in
-  place, and returns `{ cleared, charsBefore, charsAfter }`.
-- `runAgent` calls it after `usage.push(turn)` when the threshold is reached.
-  The loop stays small; the logic stays in the context manager.
-- A new event, `{ type: "compaction", kind: "clear", cleared, charsBefore, charsAfter }`,
-  so the UI can show a line in the transcript and the eval runner can count
-  compactions.
+- `src/agent/compaction.ts`: `compactSettings()` reads the environment, and
+  `clearOldToolOutput(messages, { keepTurns })` is a pure function that
+  returns `{ messages, result }`, a new message list plus
+  `{ cleared, charsBefore, charsAfter }`. It never changes its input.
+- `ContextManager` only gains `replaceItems(items)`. It stays a store.
+- `runAgent` decides *when*: after a turn's tool results are added, if
+  `turn.inputTokens >= clearAt`, it calls `clearOldToolOutput` and, if anything
+  was cleared, swaps in the new list and emits
+  `{ type: "compaction", kind: "clear", cleared, charsBefore, charsAfter }`.
+- The Ink UI and the DEBUG renderer show that event as a dim transcript line.
+  The eval runner records the settings (`off` or `clear@<at> keep<n>`) and the
+  number of compactions in every `eval_history.json` record.
 
 ## Settings
 
@@ -127,43 +125,86 @@ Environment variables for now, like `KIVO_MODEL` (flags come with #31):
 
 | Variable | Values | Default |
 |---|---|---|
-| `KIVO_COMPACT` | `off`, `clear` | `off` until evals show it helps |
-| `KIVO_CLEAR_AT` | input tokens | `40000` (starting guess) |
+| `KIVO_COMPACT` | `off`, `clear` | `off` |
+| `KIVO_CLEAR_AT` | input tokens | `40000` |
 | `KIVO_CLEAR_KEEP` | turns kept untouched | `3` |
 
-Layer 2 will get its own setting (for example `KIVO_SUMMARIZE_AT_PERCENT=85`)
-when it is built.
+## Results (#29)
 
-The eval runner records the compaction settings in every `eval_history.json`
-record, so runs with and without compaction can never be mixed up.
+Sandbox 06 (9 files, 4 tickets, 23 tests), gpt-5-mini, low reasoning. Fresh
+input is total − cached: the tokens billed at full price, and the main cost
+number. Pass rate was **100% in every run of every setting.**
 
-## How it will be measured (#29)
+| | Off | Clear @ 8k | Clear @ 12k |
+|---|---|---|---|
+| Runs | 10 | 10 | 10 |
+| Steps | 16.5 | 23.3 | 16.9 |
+| Peak input | 14.7k | 9.8k | 12.2k |
+| Total input | 142k | 142k | 115k |
+| Cached | ~88% | ~68% | ~80% |
+| **Fresh input** | **16.4k** | **45.7k** | **22.2k** |
+| Clears per run | 0 | 2–7 | 0–1 |
 
-Run sandboxes 05 and 06 with `--runs 5` or more, with the model and reasoning
-fixed:
+### 8k: thrashing
 
-- `KIVO_COMPACT=off` (baseline)
-- `KIVO_COMPACT=clear`, `KIVO_CLEAR_AT=8000`, so it actually fires on these
-  sandboxes
+8k is about the size of the files the model is actively working on. Right
+after a clear the context was already close to 8k again, so it cleared, the
+model re-read what it had lost, the context climbed back over 8k, and it
+cleared again — up to 7 times in one run.
 
-Compare:
+In a traced run: 14 `read_file` calls plus one shell read, against 10 with
+compaction off (`test.js` and `pricing.js` were read 4 times each). The turn
+after each clear showed `cached 0` or `cached 1536`. One `edit_file` failed
+because the model wrote it from memory of a file that had been cleared.
 
-- pass rate (must not drop)
-- **fresh input** (total − cached), the main cost number
-- total input and peak input
-- number of compactions per run
-- re-reads: how often the model reads a file again after its output was
-  cleared. Many re-reads mean we cleared things it still needed.
+Fresh input was ~2.8× higher than off, and the ranges of the two settings did
+not overlap.
 
-Single runs vary by about 2× on identical code, so compare means and ranges,
-never single runs.
+"Keep the last 3 turns" made this worse: gpt-5-mini read about one file per
+turn here, so 3 turns protected only 3 files. `test.js`, the spec for the
+whole task, was cleared six turns after it was read.
 
-## Open questions
+### 12k: one clear, roughly break-even
 
-- What is the lowest layer 1 threshold where the savings outweigh the cache
-  break?
-- Which N (turns kept) gives the best savings without hurting the pass rate?
-- Is clearing tool results alone enough, or do large tool-call inputs (for
-  example `write_file` content) also need clearing?
-- If clearing doesn't pay off at this size, that is a result too: the default
-  threshold should sit where it starts paying off.
+At 12k it cleared at most once per run and did not thrash. In a traced batch,
+each clear removed 7–8 outputs (~33k chars, ~8–9k tokens) and the next request
+dropped from ~12k to 3–5k tokens, with nothing cached.
+
+Break-even, measured from that trace (fresh token = 1, cached token ≈ 0.1):
+
+- **Cost, once:** the ~3.4k tokens left after the clear are sent fresh instead
+  of ~12k sent cached: ~2.2 units.
+- **Saving, per later turn:** ~8.6k fewer cached tokens: ~0.86 units.
+- **Break-even:** ~3 turns after the clear.
+
+One run that cleared with 4 turns left came out about even. One cleared on its
+last tool turn and lost. Batch averages show 12k slightly worse than off, but
+that is mostly because only the longer runs reach 12k, plus occasional cache
+misses the clear didn't cause. **On a task this size, the cost effect of one
+clear is within the run-to-run noise.**
+
+### What this means
+
+1. Clearing works mechanically and doesn't hurt the pass rate.
+2. A threshold near the working set thrashes and costs ~2–3× more. The
+   threshold must sit well above it.
+3. With prompt caching, cleared tokens were already cheap (~10% price), so
+   clearing is a small effect. It pays back in a few turns, but loses when it
+   fires near the end of a task or repeatedly.
+4. Fresh input is the honest cost number. Total input stayed the same at 8k
+   while fresh input almost tripled.
+
+**Decision:** layer 1 ships **off by default**, with `KIVO_CLEAR_AT` at
+40000, far above the working set of these tasks. Layer 2 is not needed for
+v0.2.
+
+## Next steps
+
+- **Keep recent output by token budget, not turns.** How many files "3 turns"
+  protects depends on how many tools the model calls per turn; a token budget
+  protects the same amount every time.
+- **A guard against repeated clears:** no second clear until the previous one
+  has had time to pay off.
+- **A much longer sandbox (40+ steps)**, where a clear has many turns left to
+  pay back, to measure compaction where it should matter.
+- **Cost per run** in the eval runner, including output tokens.
