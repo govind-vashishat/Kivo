@@ -72,8 +72,12 @@ Rules:
 - **Keep the structure.** The tool call and its result stay where they are;
   only the result's `value` text changes. The API requires every tool call to
   have a matching result, and the model can still see what it did.
-- **Keep the last N turns untouched** (default 3). The model never loses what
-  it was just working on. (To be replaced by a token budget; see Next steps.)
+- **Keep recent output by a token budget** (default 8,000 tokens, estimated
+  as chars ÷ 4). Walking from the newest output back, outputs are kept while
+  everything newer still fits in the budget; older ones can be cleared. This
+  turn's outputs are always kept, since the model hasn't seen them yet. A
+  budget protects the same amount of work whether the model calls one tool
+  per turn or five; "the last 3 turns" did not.
 - **Skip small outputs** (under 500 chars). Clearing them saves almost
   nothing and loses information.
 - **Skip small savings.** If everything eligible adds up to less than 4,000
@@ -107,7 +111,7 @@ After every model call the loop already knows the real request size
 ## Where it lives
 
 - `src/agent/compaction.ts`: `compactSettings()` reads the environment, and
-  `clearOldToolOutput(messages, { keepTurns })` is a pure function that
+  `clearOldToolOutput(messages, { keepTokens })` is a pure function that
   returns `{ messages, result }`, a new message list plus
   `{ cleared, charsBefore, charsAfter }`. It never changes its input.
 - `ContextManager` only gains `replaceItems(items)`. It stays a store.
@@ -127,7 +131,7 @@ Environment variables for now, like `KIVO_MODEL` (flags come with #31):
 |---|---|---|
 | `KIVO_COMPACT` | `off`, `clear` | `off` |
 | `KIVO_CLEAR_AT` | input tokens | `40000` |
-| `KIVO_CLEAR_KEEP` | turns kept untouched | `3` |
+| `KIVO_CLEAR_KEEP_TOKENS` | tokens of recent tool output kept | `8000` |
 
 ## Results (#29)
 
