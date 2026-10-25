@@ -111,7 +111,7 @@ async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalR
 
 function describeCompaction(settings: CompactSettings): string {
     if (settings.mode === "off") return "off";
-    return `clear@${settings.clearAt} keep${settings.keepTurns}`;
+    return `clear@${settings.clearAt} keep${settings.keepTokens}`;
 }
 
 function mean(values: number[]) {

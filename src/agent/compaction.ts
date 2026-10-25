@@ -1,7 +1,8 @@
 import type { ModelMessage, ToolResultPart } from "ai";
 
 const DEFAULT_CLEAR_AT = 40000;
-const DEFAULT_KEEP_TURNS = 3;
+const DEFAULT_KEEP_TOKENS = 8000;
+const CHARS_PER_TOKEN = 4;
 const MIN_CHARS = 500;
 const MIN_TOTAL_CHARS = 4000;
 const CLEARED_PREFIX = "[cleared to save context:";
@@ -9,7 +10,7 @@ const CLEARED_PREFIX = "[cleared to save context:";
 export interface CompactSettings {
     mode: "off" | "clear";
     clearAt: number;
-    keepTurns: number;
+    keepTokens: number;
 }
 
 export interface ClearResult {
@@ -20,38 +21,43 @@ export interface ClearResult {
 
 export function compactSettings(): CompactSettings {
     const clearAt = Number(process.env.KIVO_CLEAR_AT ?? DEFAULT_CLEAR_AT);
-    const keepTurns = Number(process.env.KIVO_CLEAR_KEEP ?? DEFAULT_KEEP_TURNS);
+    const keepTokens = Number(process.env.KIVO_CLEAR_KEEP_TOKENS ?? DEFAULT_KEEP_TOKENS);
     return {
         mode: process.env.KIVO_COMPACT === "clear" ? "clear" : "off",
         clearAt: Number.isFinite(clearAt) && clearAt > 0 ? clearAt : DEFAULT_CLEAR_AT,
-        keepTurns: Number.isInteger(keepTurns) && keepTurns >= 0 ? keepTurns : DEFAULT_KEEP_TURNS,
+        keepTokens:
+            Number.isInteger(keepTokens) && keepTokens >= 0 ? keepTokens : DEFAULT_KEEP_TOKENS,
     };
 }
 
 export function clearOldToolOutput(
     messages: ModelMessage[],
-    { keepTurns }: Pick<CompactSettings, "keepTurns">,
+    { keepTokens }: Pick<CompactSettings, "keepTokens">,
 ): { messages: ModelMessage[]; result: ClearResult } {
     const result: ClearResult = { cleared: 0, charsBefore: 0, charsAfter: 0 };
 
-    const toolIndexes = messages.flatMap((m, i) => (m.role === "tool" ? [i] : []));
-    const eligible = toolIndexes.slice(0, Math.max(0, toolIndexes.length - keepTurns));
-
-    //Pass 1 - find what could be cleared -
+    //Pass 1 - walk tool outputs newest to oldest -
     const targets = new Set<string>(); //tool call ids
     let clearable = 0;
-    for (const index of eligible) {
-        const message = messages[index];
-        if (message?.role !== "tool") continue;
-        for (const part of message.content) {
+    let newerTokens = 0;
+    let isNewestMessage = true;
+
+    for (const message of [...messages].reverse()) {
+        if (message.role !== "tool") continue;
+        for (const part of [...message.content].reverse()) {
             if (part.type !== "tool-result") continue;
-            const value = textOf(part);
-            if (value === null || value.length < MIN_CHARS || value.startsWith(CLEARED_PREFIX)) {
-                continue;
-            }
+            const value = textOf(part) ?? "";
+            if (value === null) continue;
+
+            const isProtected = isNewestMessage || newerTokens < keepTokens;
+            newerTokens += value.length / CHARS_PER_TOKEN;
+            if (isProtected) continue;
+
+            if (value.length < MIN_CHARS || value.startsWith(CLEARED_PREFIX)) continue;
             targets.add(part.toolCallId);
             clearable += value.length;
         }
+        isNewestMessage = false;
     }
 
     //Don't clear and break prompt cache for tiny savings
@@ -70,7 +76,7 @@ export function clearOldToolOutput(
             const value = textOf(part) ?? "";
             const what = calls.get(part.toolCallId) ?? part.toolName;
             const size = value.length.toLocaleString("en-us");
-            const placeholder = `${CLEARED_PREFIX}, ${what}, ${size} chars. Run the tool again if you need it.]`;
+            const placeholder = `${CLEARED_PREFIX} ${what}, ${size} chars. Run the tool again if you need it.]`;
 
             result.cleared += 1;
             result.charsBefore += value.length;
@@ -107,7 +113,7 @@ function describeCall(toolName: string, input: unknown): string {
         const { path, command } = input as { path?: string; command?: string };
         if (typeof path === "string") return `${toolName} ${path}`;
         if (typeof command === "string") {
-            const short = command.length > 60 ? `${command.slice(0, 60)}` : command;
+            const short = command.length > 60 ? `${command.slice(0, 60)}...` : command;
             return `${toolName} \`${short}\``;
         }
     }
