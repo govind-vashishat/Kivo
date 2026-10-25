@@ -1,6 +1,6 @@
 {
   "name": "kivoforge",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Kivo — a minimal terminal coding agent, built by hand. Published as `kivoforge`; the command is `kivo`.",
   "type": "module",
   "license": "MIT",
