@@ -3,18 +3,27 @@ import { useEffect, useRef, useState } from "react";
 import { ContextManager } from "../../agent/context";
 import type { AgentEvent } from "../../agent/events";
 import { runAgent } from "../../agent/loop";
+import {
+    type ModelSettings,
+    normalizeModel,
+    parseReasoning,
+    reasoningLabel,
+} from "../../agent/models";
 import type { ApprovalRequest } from "../../agent/tools";
 import { describeError } from "../render";
 import { ApprovalPrompt, Input, type Item, ItemView, Spinner, ToolLine } from "./views";
 
-const HELP = ` /auto    turn auto-approve on or off
- /clear   start a fresh conversation
- /help    show this
- /exit    quit`;
+const HELP = ` /model [name]        show or switch the model, e.g. /model openai/gpt-5-mini
+ /reasoning [level]   show or set reasoning: default, none, minimal, low, medium, high, xhigh, max
+ /auto                turn auto-approve on or off
+ /clear               start a fresh conversation
+ /help                show this
+ /exit                quit`;
 
 interface AppProps {
     initialTask?: string; // one-shot mode: run this, then exit
     autoApprove?: boolean; // --yes
+    modelSettings: ModelSettings;
 }
 
 interface Pending {
@@ -22,7 +31,7 @@ interface Pending {
     resolve: (approved: boolean) => void;
 }
 
-export function App({ initialTask, autoApprove = false }: AppProps) {
+export function App({ initialTask, autoApprove = false, modelSettings }: AppProps) {
     const { exit } = useApp();
     const [items, setItems] = useState<Item[]>([{ kind: "banner" }]);
     const [busy, setBusy] = useState(false);
@@ -30,6 +39,7 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
     const [running, setRunning] = useState<{ name: string; input: unknown } | null>(null);
     const [draft, setDraft] = useState("");
     const [auto, setAuto] = useState(autoApprove);
+    const [settings, setSettings] = useState(modelSettings);
 
     const context = useRef(new ContextManager()); // one conversation per session
     const toolStarts = useRef(new Map<string, { name: string; input: unknown }>());
@@ -42,8 +52,8 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
     };
 
     const status = [
-        process.env.KIVO_MODEL ?? "gpt-5",
-        `${process.env.KIVO_REASONING ?? "default"} reasoning`,
+        settings.model,
+        `${reasoningLabel(settings.reasoning)} reasoning`,
         auto ? "auto-approve on" : "approvals on",
     ].join(" ");
 
@@ -119,6 +129,7 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
                 task,
                 cwd: process.cwd(),
                 context: context.current,
+                modelSettings: settings,
                 onEvent,
                 approve,
             });
@@ -132,12 +143,42 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
         }
     };
 
+    const switchModel = (arg: string) => {
+        if (!arg) return add({ kind: "info", text: `model: ${settings.model}` });
+        try {
+            const model = normalizeModel(arg);
+            setSettings((s) => ({ ...s, model }));
+            add({ kind: "info", text: `model set to ${model}` });
+        } catch (err) {
+            add({ kind: "error", text: describeError(err) });
+        }
+    };
+
+    const switchReasoning = (arg: string) => {
+        if (!arg) {
+            return add({ kind: "info", text: `reasoning: ${reasoningLabel(settings.reasoning)}` });
+        }
+        try {
+            const reasoning = parseReasoning(arg);
+            setSettings((s) => ({ ...s, reasoning }));
+            add({ kind: "info", text: `reasoning set to ${reasoningLabel(reasoning)}` });
+        } catch (err) {
+            add({ kind: "error", text: describeError(err) });
+        }
+    };
+
     const submit = (line: string) => {
         const text = line.trim();
         if (!text) return;
-        if (text === "/exit" || text === "/quit") return exit();
-        if (text === "/help") return add({ kind: "info", text: HELP });
-        if (text === "/auto") {
+
+        const [command = "", ...rest] = text.split(/\s+/);
+        const arg = rest.join(" ");
+
+        if (command === "/exit" || command === "/quit") return exit();
+        if (command === "/help") return add({ kind: "info", text: HELP });
+        if (command === "/model") return switchModel(arg);
+        if (command === "/reasoning") return switchReasoning(arg);
+        if (command === "/auto") {
             const on = !autoRef.current;
             setAutoApprove(on);
             return add({
@@ -145,7 +186,7 @@ export function App({ initialTask, autoApprove = false }: AppProps) {
                 text: on ? "auto-approve on: changes run without asking" : "auto-approve off",
             });
         }
-        if (text === "/clear") {
+        if (command === "/clear") {
             context.current = new ContextManager();
             return add({ kind: "info", text: "(conversation cleared)" });
         }

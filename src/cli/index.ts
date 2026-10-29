@@ -51,13 +51,13 @@ if (values.help) {
 
 function readModelSettings() {
     try {
-        resolveModelSettings({ model: values.model, reasoning: values.reasoning });
+        return resolveModelSettings({ model: values.model, reasoning: values.reasoning });
     } catch (err) {
         fatal((err as Error).message);
     }
 }
 
-const modelSettings = readModelSettings;
+const modelSettings = readModelSettings();
 
 if (!process.env.OPENAI_API_KEY) {
     fatal(
