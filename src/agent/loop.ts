@@ -1,8 +1,8 @@
-import { openai } from "@ai-sdk/openai";
 import { generateText, type ToolResultPart } from "ai";
 import { type CompactSettings, clearOldToolOutput, compactSettings } from "./compaction";
 import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
+import { type ModelSettings, resolveModel, resolveModelSettings } from "./models";
 import {
     type ApprovalRequest,
     COMMAND_TIMEOUT_MINUTES,
@@ -16,7 +16,7 @@ export interface RunOptions {
     task: string;
     cwd: string;
     maxSteps?: number;
-    model?: string;
+    modelSettings?: ModelSettings;
     onEvent?: AgentEventListener;
     context?: ContextManager;
     approve?: (request: ApprovalRequest) => Promise<boolean>;
@@ -52,8 +52,9 @@ Reply in plain text. The terminal does not render Markdown, so do not use **bold
 }
 
 export async function runAgent(opts: RunOptions): Promise<RunResult> {
-    const { task, cwd, maxSteps = 100, model = process.env.KIVO_MODEL ?? "gpt-5", onEvent } = opts;
-    const reasoning = process.env.KIVO_REASONING ?? "provider-default";
+    const { task, cwd, maxSteps = 100, onEvent } = opts;
+    const { model, reasoning } = opts.modelSettings ?? resolveModelSettings();
+    const languageModel = resolveModel(model);
     const emit = (e: AgentEvent) => onEvent?.(e);
 
     const context = opts.context ?? new ContextManager();
@@ -71,11 +72,11 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
 
         emit({ type: "thinking_start" });
         const result = await generateText({
-            model: openai(model),
+            model: languageModel,
             instructions: systemPrompt(model),
             messages: context.getItems(),
             tools: toolDefinitions,
-            reasoning: reasoning as any,
+            reasoning,
         }).finally(() => emit({ type: "thinking_end" }));
 
         const turn: TurnUsage = {

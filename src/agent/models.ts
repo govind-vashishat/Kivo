@@ -11,7 +11,6 @@ export const REASONING_LEVELS = [
     "medium",
     "high",
     "xhigh",
-    "max",
 ] as const;
 
 export type Reasoning = (typeof REASONING_LEVELS)[number];
@@ -43,6 +42,11 @@ function parseModel(name: string) {
 export function normalizeModel(name: string): string {
     const { provider, id } = parseModel(name);
     return `${provider}/${id}`;
+}
+
+export function resolveModel(name: string): LanguageModel {
+    const { id, create } = parseModel(name);
+    return create(id);
 }
 
 export function parseReasoning(value: string): Reasoning {
