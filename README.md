@@ -48,23 +48,40 @@ export OPENAI_API_KEY="sk-..."
 
 Or put it in a `.env` file in the folder you run `kivo` from.
 
-| Variable         | Default            | Description                                    |
-| ---------------- | ------------------ | ---------------------------------------------- |
-| `OPENAI_API_KEY` | (required)         | Your OpenAI API key                            |
-| `KIVO_MODEL`     | `gpt-5`            | Any OpenAI model, e.g. `gpt-5-mini`            |
-| `KIVO_REASONING` | provider default   | Reasoning effort, e.g. `low`, `medium`, `high` |
-| `DEBUG`          | off                | Set to `1` to show token usage for every step  |
+| Variable         | Default          | Description                                                                   |
+| ---------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `OPENAI_API_KEY` | (required)       | Your OpenAI API key                                                           |
+| `KIVO_MODEL`     | `openai/gpt-5`   | Model as `provider/model`, e.g. `openai/gpt-5-mini`. A bare name means OpenAI |
+| `KIVO_REASONING` | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high` or `xhigh`              |
+| `DEBUG`          | off              | Set to `1` to show token usage for every step                                 |
+
+Flags and session commands override these, see [Choosing a model](#choosing-a-model).
 
 ## Usage
 
 ```bash
-kivo                  # start an interactive session
-kivo "<task>"         # run one task and exit
-kivo --yes "<task>"   # run without asking for approval (also -y)
-kivo --help           # show usage
+kivo                          # start an interactive session
+kivo "<task>"                 # run one task and exit
+kivo --yes "<task>"           # run without asking for approval (also -y)
+kivo -m openai/gpt-5-mini     # choose the model (also --model)
+kivo -r low                   # choose the reasoning effort (also --reasoning)
+kivo --help                   # show usage
 ```
 
 Kivo works in the current directory. Run it from the root of the project you want it to work on.
+
+### Choosing a model
+
+The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-5`, the provider's own reasoning default).
+
+In a session, `/model` and `/reasoning` show the current setting, and with an argument they switch it for the next prompt:
+
+```
+/model openai/gpt-5-mini
+/reasoning low
+```
+
+The conversation carries over when you switch. The status line under the input always shows what's active. Model names aren't checked ahead of time, so a typo shows up as an error from the provider on your next prompt.
 
 ### Approvals
 
@@ -76,11 +93,14 @@ Shell commands run without a terminal: they get no input, most tools are told to
 
 ### Session commands
 
-| Command  | Description            |
-| -------- | ---------------------- |
-| `/clear` | Reset the conversation |
-| `/help`  | Show available commands |
-| `/exit`  | Quit                   |
+| Command              | Description                      |
+| -------------------- | -------------------------------- |
+| `/model [name]`      | Show or switch the model         |
+| `/reasoning [level]` | Show or set the reasoning effort |
+| `/auto`              | Turn auto-approve on or off      |
+| `/clear`             | Reset the conversation           |
+| `/help`              | Show available commands          |
+| `/exit`              | Quit                             |
 
 In a session, the conversation carries over between prompts. A single-task run starts fresh.
 
@@ -193,8 +213,8 @@ Total input tokens grow with the square of the number of steps, because the whol
 
 ## Roadmap
 
-- **v0.2 Long tasks:** longer eval sandboxes, then context compaction, measured with and without
-- **v0.3 Any model:** a `--model` flag across providers, the eval suite run on several models, a project instructions file
+- **v0.2 Long tasks (done):** longer eval sandboxes, context compaction measured with and without (off by default)
+- **v0.3 Any model:** model and reasoning from flags or `/model`, `/reasoning`; other providers; the eval suite run on several models; a project instructions file
 - **v0.4 Smoother terminal:** streaming output, Ctrl-C to interrupt a running task
 - **v0.5 Knows your codebase:** a repo map, measured as fewer exploration steps
 - **v0.6 Web UI:** a local server streaming the same events to a browser
