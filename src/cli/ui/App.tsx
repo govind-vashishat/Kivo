@@ -5,6 +5,7 @@ import type { AgentEvent } from "../../agent/events";
 import { runAgent } from "../../agent/loop";
 import {
     type ModelSettings,
+    missingKey,
     normalizeModel,
     parseReasoning,
     reasoningLabel,
@@ -134,7 +135,7 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
                 approve,
             });
         } catch (err) {
-            add({ kind: "error", text: describeError(err) });
+            add({ kind: "error", text: describeError(err, settings.model) });
         } finally {
             setBusy(false);
             setRunning(null); // a crashed run never sends tool_result, so clear it here
@@ -147,6 +148,13 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
         if (!arg) return add({ kind: "info", text: `model: ${settings.model}` });
         try {
             const model = normalizeModel(arg);
+            const keyEnv = missingKey(model);
+            if (keyEnv) {
+                return add({
+                    kind: "error",
+                    text: `${keyEnv} isn't set, staying on ${settings.model}. Set it and restart kivo.`,
+                });
+            }
             setSettings((s) => ({ ...s, model }));
             add({ kind: "info", text: `model set to ${model}` });
         } catch (err) {
