@@ -1,3 +1,5 @@
+import { anthropic } from "@ai-sdk/anthropic";
+import { deepseek } from "@ai-sdk/deepseek";
 import { openai } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
@@ -20,33 +22,51 @@ export interface ModelSettings {
     reasoning: Reasoning;
 }
 
-const providers: Record<string, (id: string) => LanguageModel> = {
-    openai: (id) => openai(id),
+interface Provider {
+    name: string;
+    keyEnv: string;
+    create: (id: string) => LanguageModel;
+}
+
+const providers: Record<string, Provider> = {
+    openai: { name: "OpenAI", keyEnv: "OPENAI_API_KEY", create: (id) => openai(id) },
+    anthropic: { name: "Anthropic", keyEnv: "ANTHROPIC_API_KEY", create: (id) => anthropic(id) },
+    deepseek: { name: "Deepseek", keyEnv: "DEEPSEEK_API_KEY", create: (id) => deepseek(id) },
 };
 
 function parseModel(name: string) {
     const text = name.trim();
     const slash = text.indexOf("/");
-    const provider = slash === -1 ? "openai" : text.slice(0, slash);
+    const providerKey = slash === -1 ? "openai" : text.slice(0, slash);
     const id = slash === -1 ? text : text.slice(slash + 1);
 
-    const create = Object.hasOwn(providers, provider) ? providers[provider] : undefined;
-    if (!create) {
+    const provider = Object.hasOwn(providers, providerKey) ? providers[providerKey] : undefined;
+    if (!provider) {
         const available = Object.keys(providers).join(" ");
-        throw new Error(`unknown provider "${provider}" (available: ${available})`);
+        throw new Error(`unknown provider "${providerKey}" (available: ${available})`);
     }
     if (!id) throw new Error(`missing model name in "${name}"`);
-    return { provider, id, create };
+    return { providerKey, id, provider };
 }
 
 export function normalizeModel(name: string): string {
-    const { provider, id } = parseModel(name);
-    return `${provider}/${id}`;
+    const { providerKey, id } = parseModel(name);
+    return `${providerKey}/${id}`;
 }
 
 export function resolveModel(name: string): LanguageModel {
-    const { id, create } = parseModel(name);
-    return create(id);
+    const { id, provider } = parseModel(name);
+    return provider.create(id);
+}
+
+export function modelInfo(name: string) {
+    const { id, provider } = parseModel(name);
+    return { id, provider: provider.name, keyEnv: provider.keyEnv };
+}
+
+export function missingKey(name: string): string | undefined {
+    const { keyEnv } = modelInfo(name);
+    return process.env[keyEnv] ? undefined : keyEnv;
 }
 
 export function parseReasoning(value: string): Reasoning {

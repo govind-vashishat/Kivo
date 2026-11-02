@@ -54,8 +54,10 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.74",
-    "ai": "^7.0.113",
+    "@ai-sdk/anthropic": "^4.0.94",
+    "@ai-sdk/deepseek": "^3.0.77",
+    "@ai-sdk/openai": "^4.0.106",
+    "ai": "^7.0.159",
     "diff": "^9.0.0",
     "ink": "^8.0.0",
     "react": "^19.3.0",
