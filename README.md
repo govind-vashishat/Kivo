@@ -12,7 +12,7 @@ kivo "the tests in test.js are failing, find and fix the bug"
 
 ## Installation
 
-Kivo needs [Bun](https://bun.sh) 1.1 or later and an OpenAI API key.
+Kivo needs [Bun](https://bun.sh) 1.1 or later and an API key for OpenAI, Anthropic or DeepSeek.
 
 ```bash
 npm install -g kivoforge
@@ -42,46 +42,62 @@ This builds a single executable (about 100 MB) for your platform that runs witho
 
 ## Configuration
 
+Set the API key for the provider you want to use. You only need one:
+
 ```bash
-export OPENAI_API_KEY="sk-..."
+export OPENAI_API_KEY="sk-..."      # openai/ models
+export ANTHROPIC_API_KEY="sk-..."   # anthropic/ models
+export DEEPSEEK_API_KEY="sk-..."    # deepseek/ models
 ```
 
-Or put it in a `.env` file in the folder you run `kivo` from.
+Or put them in a `.env` file in the folder you run `kivo` from. Kivo checks at startup that the key for the chosen model is set.
 
-| Variable         | Default          | Description                                                                   |
-| ---------------- | ---------------- | ----------------------------------------------------------------------------- |
-| `OPENAI_API_KEY` | (required)       | Your OpenAI API key                                                           |
-| `KIVO_MODEL`     | `openai/gpt-5`   | Model as `provider/model`, e.g. `openai/gpt-5-mini`. A bare name means OpenAI |
-| `KIVO_REASONING` | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high` or `xhigh`              |
-| `DEBUG`          | off              | Set to `1` to show token usage for every step                                 |
+| Variable            | Default          | Description                                                                             |
+| ------------------- | ---------------- | --------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`    | none             | Needed for `openai/` models                                                             |
+| `ANTHROPIC_API_KEY` | none             | Needed for `anthropic/` models                                                          |
+| `DEEPSEEK_API_KEY`  | none             | Needed for `deepseek/` models                                                           |
+| `KIVO_MODEL`        | `openai/gpt-5`   | Model as `provider/model`, e.g. `anthropic/claude-sonnet-4-5`. A bare name means OpenAI |
+| `KIVO_REASONING`    | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high` or `xhigh`                        |
+| `DEBUG`             | off              | Set to `1` to show token usage for every step                                           |
 
 Flags and session commands override these, see [Choosing a model](#choosing-a-model).
 
 ## Usage
 
 ```bash
-kivo                          # start an interactive session
-kivo "<task>"                 # run one task and exit
-kivo --yes "<task>"           # run without asking for approval (also -y)
-kivo -m openai/gpt-5-mini     # choose the model (also --model)
-kivo -r low                   # choose the reasoning effort (also --reasoning)
-kivo --help                   # show usage
+kivo                           # start an interactive session
+kivo "<task>"                  # run one task and exit
+kivo --yes "<task>"            # run without asking for approval (also -y)
+kivo -m deepseek/deepseek-chat # choose the model (also --model)
+kivo -r low                    # choose the reasoning effort (also --reasoning)
+kivo --help                    # show usage
 ```
 
 Kivo works in the current directory. Run it from the root of the project you want it to work on.
 
 ### Choosing a model
 
+Models are written as `provider/model`:
+
+| Provider  | Example                       | Key                 |
+| --------- | ----------------------------- | ------------------- |
+| OpenAI    | `openai/gpt-5`                | `OPENAI_API_KEY`    |
+| Anthropic | `anthropic/claude-sonnet-4-5` | `ANTHROPIC_API_KEY` |
+| DeepSeek  | `deepseek/deepseek-chat`      | `DEEPSEEK_API_KEY`  |
+
 The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-5`, the provider's own reasoning default).
 
 In a session, `/model` and `/reasoning` show the current setting, and with an argument they switch it for the next prompt:
 
 ```
-/model openai/gpt-5-mini
+/model anthropic/claude-sonnet-4-5
 /reasoning low
 ```
 
-The conversation carries over when you switch. The status line under the input always shows what's active. Model names aren't checked ahead of time, so a typo shows up as an error from the provider on your next prompt.
+The conversation carries over when you switch, including to a different provider. If the new provider's key isn't set, Kivo stays on the current model and tells you which variable is missing. The status line under the input always shows what's active. Model names aren't checked ahead of time, so a typo shows up as an error from the provider on your next prompt.
+
+Each provider supports reasoning effort differently. DeepSeek, for example, only has low, high and max, so the levels in between are rounded to the nearest one.
 
 ### Approvals
 
@@ -125,7 +141,7 @@ user task ──▶ ┌───────────────────
                            append results ─────────┘
 ```
 
-The Vercel AI SDK is used only to call the model. The loop, tools, approvals and context are Kivo's own code.
+The Vercel AI SDK is used only to call the model, which is what lets the same loop run on OpenAI, Anthropic and DeepSeek. The loop, tools, approvals and context are Kivo's own code.
 
 ### Error handling
 
@@ -137,11 +153,11 @@ The full conversation is kept in `ContextManager` and sent with every request, i
 
 ### Tools
 
-| Tool         | Description                                                                 |
-| ------------ | --------------------------------------------------------------------------- |
-| `read_file`  | Read a file                                                                 |
-| `write_file` | Create or overwrite a file                                                  |
-| `edit_file`  | Replace an exact snippet; fails unless `old_text` matches exactly once      |
+| Tool         | Description                                                                     |
+| ------------ | ------------------------------------------------------------------------------- |
+| `read_file`  | Read a file                                                                     |
+| `write_file` | Create or overwrite a file                                                      |
+| `edit_file`  | Replace an exact snippet; fails unless `old_text` matches exactly once          |
 | `run_bash`   | Run a shell command in the project folder; returns stdout, stderr and exit code |
 
 `edit_file` requires a unique match, so an ambiguous edit fails instead of landing in the wrong place.
@@ -169,6 +185,7 @@ export type AgentEvent =
 src/
   agent/
     loop.ts        runAgent: the agent loop and system prompt
+    models.ts      providers, their API keys, model and reasoning settings
     tools.ts       tool definitions, executor, approval requests
     readonly.ts    which shell commands can run without asking
     context.ts     ContextManager: conversation state
@@ -202,19 +219,19 @@ Each sandbox is copied to a temporary folder and the agent runs on the copy. `te
 
 Results with `gpt-5-mini`, low reasoning, 3 runs each:
 
-| Sandbox               | Task                                               | Passed | Avg input tokens |
-| --------------------- | -------------------------------------------------- | ------ | ---------------- |
-| `01-syntax-error`     | Fix a file that doesn't parse                      | 3/3    | ~2.4k            |
-| `02-failing-test`     | Fix an off-by-one error                            | 3/3    | ~3.0k            |
-| `03-multi-file`       | Fix wrong prices across files                      | 3/3    | ~5.8k            |
-| `04-invoice-currency` | Trace a currency bug through a six-module invoicing system | 3/3 | ~25k        |
+| Sandbox               | Task                                                       | Passed | Avg input tokens |
+| --------------------- | ---------------------------------------------------------- | ------ | ---------------- |
+| `01-syntax-error`     | Fix a file that doesn't parse                              | 3/3    | ~2.4k            |
+| `02-failing-test`     | Fix an off-by-one error                                    | 3/3    | ~3.0k            |
+| `03-multi-file`       | Fix wrong prices across files                              | 3/3    | ~5.8k            |
+| `04-invoice-currency` | Trace a currency bug through a six-module invoicing system | 3/3    | ~25k             |
 
 Total input tokens grow with the square of the number of steps, because the whole conversation is re-sent every turn. Compaction is the next step, and these evals are how it will be judged.
 
 ## Roadmap
 
 - **v0.2 Long tasks (done):** longer eval sandboxes, context compaction measured with and without (off by default)
-- **v0.3 Any model:** model and reasoning from flags or `/model`, `/reasoning`; other providers; the eval suite run on several models; a project instructions file
+- **v0.3 Any model:** model and reasoning from flags or `/model`, `/reasoning`; Anthropic and DeepSeek; the eval suite run on several models; a project instructions file
 - **v0.4 Smoother terminal:** streaming output, Ctrl-C to interrupt a running task
 - **v0.5 Knows your codebase:** a repo map, measured as fewer exploration steps
 - **v0.6 Web UI:** a local server streaming the same events to a browser
