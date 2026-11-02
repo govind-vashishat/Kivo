@@ -1,5 +1,6 @@
 import { APICallError } from "ai";
 import type { AgentEvent } from "../agent/events";
+import { modelInfo } from "../agent/models";
 
 const DEBUG = Boolean(process.env.DEBUG);
 
@@ -35,15 +36,17 @@ export function startSpinner(label = "thinking"): () => void {
     };
 }
 
-export function describeError(err: any): string {
+export function describeError(err: any, model?: string): string {
     // Retried errors (429, 5xx) arrive wrapped in a RetryError; the API error is in lastError
     const apiError = err?.lastError ?? err;
     if (APICallError.isInstance(apiError)) {
         const host = URL.parse(apiError.url)?.host ?? "the model provider";
         const status = apiError.statusCode;
         if (status === undefined) return `Network error — could not reach ${host}.`;
-        if (status === 401)
-            return `${host} rejected the API key (401). Check the key for this provider.`;
+        if (status === 401) {
+            const key = model ? modelInfo(model).keyEnv : "the key for this provider";
+            return `${host} rejected the API key (401). Check ${key}.`;
+        }
         if (status === 429)
             return `Rate limited or out of quota at ${host} (429). Check your billing.`;
         if (status === 404)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "node:util";
-import { resolveModelSettings } from "../agent/models";
+import { missingKey, resolveModelSettings } from "../agent/models";
 import { fatal } from "./render";
 import { startUI } from "./ui/App";
 
@@ -13,13 +13,20 @@ const USAGE = `
    kivo "<task>"            run a single task and exit
 
  Options:
-   -m, --model <name>       model to use, as provider/model
+   -m, --model <name>       model to use, as provider/model, e.g.
+                            openai/gpt-5, anthropic/claude-sonnet-4-5,
+                            google/gemini-2.5-pro
                             (default openai/gpt-5, or KIVO_MODEL)
    -r, --reasoning <level>  reasoning effort: default, none, minimal,
                             low, medium, high, xhigh
                             (default: the provider's, or KIVO_REASONING)
    -y, --yes                don't ask before changes (auto-approve)
    -h, --help               show this
+
+ API keys (only the one for your model's provider is needed):
+   openai      OPENAI_API_KEY
+   anthropic   ANTHROPIC_API_KEY
+   google      GOOGLE_GENERATIVE_AI_API_KEY
 
  In a session, /model and /reasoning switch these. /help lists
  all commands.
@@ -59,19 +66,21 @@ function readModelSettings() {
 
 const modelSettings = readModelSettings();
 
-if (!process.env.OPENAI_API_KEY) {
+const keyEnv = missingKey(modelSettings.model);
+
+if (keyEnv) {
     fatal(
-        "no OPENAI_API_KEY found.",
+        `no ${keyEnv} found (needed for ${modelSettings.model}).`,
         `
- Set it for this shell:
-   export OPENAI_API_KEY="sk-..."
+    Set it for this shell:
+      export ${keyEnv}="..."
 
- Make it permanent:
-   echo 'export OPENAI_API_KEY="sk-..."' >> ~/.zshrc   # or ~/.bashrc
+    Make it permanent:
+      echo 'export ${keyEnv}="..."' >> ~/.zshrc   # or ~/.bashrc
 
- Or create a .env file in the folder you run kivo from:
-   OPENAI_API_KEY=sk-...
-`,
+    Or create a .env file in the folder you run kivo from:
+      ${keyEnv}=...
+   `,
     );
 }
 
