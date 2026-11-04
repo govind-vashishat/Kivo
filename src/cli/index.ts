@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "node:util";
-import { missingKey, resolveModelSettings } from "../agent/models";
+import { loadModelSettings } from "../agent/models";
 import { fatal } from "./render";
 import { startUI } from "./ui/App";
 
@@ -18,7 +18,7 @@ const USAGE = `
                             google/gemini-2.5-pro
                             (default openai/gpt-5, or KIVO_MODEL)
    -r, --reasoning <level>  reasoning effort: default, none, minimal,
-                            low, medium, high, xhigh
+                            low, medium, high, xhigh, max
                             (default: the provider's, or KIVO_REASONING)
    -y, --yes                don't ask before changes (auto-approve)
    -h, --help               show this
@@ -58,7 +58,7 @@ if (values.help) {
 
 function readModelSettings() {
     try {
-        return resolveModelSettings({ model: values.model, reasoning: values.reasoning });
+        return loadModelSettings({ model: values.model, reasoning: values.reasoning });
     } catch (err) {
         fatal((err as Error).message);
     }
@@ -66,11 +66,11 @@ function readModelSettings() {
 
 const modelSettings = readModelSettings();
 
-const keyEnv = missingKey(modelSettings.model);
+const { keyEnv } = modelSettings.model.provider;
 
-if (keyEnv) {
+if (!process.env[keyEnv]) {
     fatal(
-        `no ${keyEnv} found (needed for ${modelSettings.model}).`,
+        `no ${keyEnv} found (needed for ${modelSettings.model.name}).`,
         `
     Set it for this shell:
       export ${keyEnv}="..."

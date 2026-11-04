@@ -3,13 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContextManager } from "../../agent/context";
 import type { AgentEvent } from "../../agent/events";
 import { runAgent } from "../../agent/loop";
-import {
-    type ModelSettings,
-    missingKey,
-    normalizeModel,
-    parseReasoning,
-    reasoningLabel,
-} from "../../agent/models";
+import { findModel, findReasoning, type ModelSettings } from "../../agent/models";
 import type { ApprovalRequest } from "../../agent/tools";
 import { describeError } from "../render";
 import { ApprovalPrompt, Input, type Item, ItemView, Spinner, ToolLine } from "./views";
@@ -54,7 +48,7 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
 
     const status = [
         settings.model,
-        `${reasoningLabel(settings.reasoning)} reasoning`,
+        `${settings.reasoning} reasoning`,
         auto ? "auto-approve on" : "approvals on",
     ].join(" ");
 
@@ -145,10 +139,10 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
     };
 
     const switchModel = (arg: string) => {
-        if (!arg) return add({ kind: "info", text: `model: ${settings.model}` });
+        if (!arg) return add({ kind: "info", text: `model: ${settings.model.name}` });
         try {
-            const model = normalizeModel(arg);
-            const keyEnv = missingKey(model);
+            const model = findModel(arg);
+            const { keyEnv } = model.provider;
             if (keyEnv) {
                 return add({
                     kind: "error",
@@ -164,12 +158,12 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
 
     const switchReasoning = (arg: string) => {
         if (!arg) {
-            return add({ kind: "info", text: `reasoning: ${reasoningLabel(settings.reasoning)}` });
+            return add({ kind: "info", text: `reasoning: ${settings.reasoning}` });
         }
         try {
-            const reasoning = parseReasoning(arg);
+            const reasoning = findReasoning(arg);
             setSettings((s) => ({ ...s, reasoning }));
-            add({ kind: "info", text: `reasoning set to ${reasoningLabel(reasoning)}` });
+            add({ kind: "info", text: `reasoning set to ${reasoning}` });
         } catch (err) {
             add({ kind: "error", text: describeError(err) });
         }
