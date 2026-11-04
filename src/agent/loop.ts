@@ -2,7 +2,7 @@ import { generateText, type ToolResultPart } from "ai";
 import { type CompactSettings, clearOldToolOutput, compactSettings } from "./compaction";
 import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
-import { type ModelSettings, modelInfo, resolveModel, resolveModelSettings } from "./models";
+import { loadModelSettings, type Model, type ModelSettings } from "./models";
 import {
     type ApprovalRequest,
     COMMAND_TIMEOUT_MINUTES,
@@ -38,10 +38,9 @@ export interface RunResult {
     compaction: CompactSettings & { count: number };
 }
 
-function systemPrompt(model: string): string {
+function systemPrompt(model: Model): string {
     const today = new Date().toISOString().slice(0, 10);
-    const { id, provider } = modelInfo(model);
-    return `You are Kivo, a terminal coding agent. You run on ${provider}'s ${id} model, inside the user's project folder. You can read, write and edit files and run shell commands there, and the user approves each change before it happens. If asked what you are, say this briefly in your own words.
+    return `You are Kivo, a terminal coding agent. You run on ${model.provider.label}'s ${model.id} model, inside the user's project folder. You can read, write and edit files and run shell commands there, and the user approves each change before it happens. If asked what you are, say this briefly in your own words.
 
 Work step by step: inspect files before editing, make the smallest change that solves the task, and verify your work by running tests or build commands. When a command fails, read the error output and fix the actual problem — do not guess blindly or claim success without verifying.
 
@@ -54,8 +53,8 @@ Reply in plain text. The terminal does not render Markdown, so do not use **bold
 
 export async function runAgent(opts: RunOptions): Promise<RunResult> {
     const { task, cwd, maxSteps = 100, onEvent } = opts;
-    const { model, reasoning } = opts.modelSettings ?? resolveModelSettings();
-    const languageModel = resolveModel(model);
+    const { model, reasoning } = opts.modelSettings ?? loadModelSettings();
+    const languageModel = model.provider.create(model.id);
     const emit = (e: AgentEvent) => onEvent?.(e);
 
     const context = opts.context ?? new ContextManager();
@@ -63,9 +62,10 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
 
     const usage: TurnUsage[] = [];
     const compaction = { ...compactSettings(), count: 0 };
+
     const done = (stopReason: RunResult["stopReason"], steps: number) => {
         emit({ type: "turn_end", stopReason: stopReason });
-        return { stopReason, steps, usage, model, reasoning, compaction };
+        return { stopReason, steps, usage, model: model.name, reasoning, compaction };
     };
 
     for (let step = 0; step < maxSteps; step++) {
@@ -77,7 +77,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
             instructions: systemPrompt(model),
             messages: context.getItems(),
             tools: toolDefinitions,
-            reasoning,
+            reasoning: reasoning === "default" ? "provider-default" : reasoning,
         }).finally(() => emit({ type: "thinking_end" }));
 
         const turn: TurnUsage = {
