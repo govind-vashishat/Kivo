@@ -52,6 +52,7 @@ export const REASONING_LEVELS = [
     "medium",
     "high",
     "xhigh",
+    "max",
 ] as const;
 
 export type Reasoning = (typeof REASONING_LEVELS)[number];

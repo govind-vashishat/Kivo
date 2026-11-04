@@ -18,7 +18,7 @@ const USAGE = `
                             google/gemini-2.5-pro
                             (default openai/gpt-5, or KIVO_MODEL)
    -r, --reasoning <level>  reasoning effort: default, none, minimal,
-                            low, medium, high, xhigh
+                            low, medium, high, xhigh, max
                             (default: the provider's, or KIVO_REASONING)
    -y, --yes                don't ask before changes (auto-approve)
    -h, --help               show this
