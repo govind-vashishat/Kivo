@@ -47,7 +47,7 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
     };
 
     const status = [
-        settings.model,
+        settings.model.name,
         `${settings.reasoning} reasoning`,
         auto ? "auto-approve on" : "approvals on",
     ].join(" ");
@@ -143,14 +143,14 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
         try {
             const model = findModel(arg);
             const { keyEnv } = model.provider;
-            if (keyEnv) {
+            if (!process.env[keyEnv]) {
                 return add({
                     kind: "error",
-                    text: `${keyEnv} isn't set, staying on ${settings.model}. Set it and restart kivo.`,
+                    text: `${keyEnv} isn't set, staying on ${settings.model.name}. Set it and restart kivo.`,
                 });
             }
             setSettings((s) => ({ ...s, model }));
-            add({ kind: "info", text: `model set to ${model}` });
+            add({ kind: "info", text: `model set to ${model.name}` });
         } catch (err) {
             add({ kind: "error", text: describeError(err) });
         }

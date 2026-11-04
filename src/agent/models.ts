@@ -29,7 +29,7 @@ export const DEFAULT_MODEL = "openai/gpt-5";
 export function findModel(text: string): Model {
     const trimmed = text.trim();
     const slash = trimmed.indexOf("/");
-    const providerKey = slash === -1 ? "openai" : trimmed.slice(0, 6);
+    const providerKey = slash === -1 ? "openai" : trimmed.slice(0, slash);
     const id = slash === -1 ? trimmed : trimmed.slice(slash + 1);
 
     const provider = Object.hasOwn(providers, providerKey) ? providers[providerKey] : undefined;
