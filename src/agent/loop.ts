@@ -3,6 +3,7 @@ import { type CompactSettings, clearOldToolOutput, compactSettings } from "./com
 import { ContextManager } from "./context";
 import type { AgentEvent, AgentEventListener } from "./events";
 import { loadModelSettings, type Model, type ModelSettings } from "./models";
+import { ownReasoningOnly } from "./reasoning";
 import {
     type ApprovalRequest,
     COMMAND_TIMEOUT_MINUTES,
@@ -75,7 +76,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         const result = await generateText({
             model: languageModel,
             instructions: systemPrompt(model),
-            messages: context.getItems(),
+            messages: ownReasoningOnly(context.getItems(), model),
             tools: toolDefinitions,
             reasoning: reasoning === "default" ? "provider-default" : reasoning,
         }).finally(() => emit({ type: "thinking_end" }));
