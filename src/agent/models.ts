@@ -7,13 +7,29 @@ import type { LanguageModel } from "ai";
 interface Provider {
     label: string;
     keyEnv: string;
+    reasoningTag: string | null;
     create: (id: string) => LanguageModel;
 }
 
 const providers: Record<string, Provider> = {
-    openai: { label: "OpenAI", keyEnv: "OPENAI_API_KEY", create: (id) => openai(id) },
-    anthropic: { label: "Anthropic", keyEnv: "ANTHROPIC_API_KEY", create: (id) => anthropic(id) },
-    deepseek: { label: "DeepSeek", keyEnv: "DEEPSEEK_API_KEY", create: (id) => deepseek(id) },
+    openai: {
+        label: "OpenAI",
+        keyEnv: "OPENAI_API_KEY",
+        reasoningTag: "openai",
+        create: (id) => openai(id),
+    },
+    anthropic: {
+        label: "Anthropic",
+        keyEnv: "ANTHROPIC_API_KEY",
+        reasoningTag: "anthropic",
+        create: (id) => anthropic(id),
+    },
+    deepseek: {
+        label: "DeepSeek",
+        keyEnv: "DEEPSEEK_API_KEY",
+        reasoningTag: null,
+        create: (id) => deepseek(id),
+    },
 };
 
 // Models -
