@@ -79,6 +79,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
             messages: ownReasoningOnly(context.getItems(), model),
             tools: toolDefinitions,
             reasoning: reasoning === "default" ? "provider-default" : reasoning,
+            providerOptions: model.provider.callOptions,
         }).finally(() => emit({ type: "thinking_end" }));
 
         const turn: TurnUsage = {
