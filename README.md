@@ -57,8 +57,8 @@ Or put them in a `.env` file in the folder you run `kivo` from. Kivo checks at s
 | `OPENAI_API_KEY`    | none             | Needed for `openai/` models                                                             |
 | `ANTHROPIC_API_KEY` | none             | Needed for `anthropic/` models                                                          |
 | `DEEPSEEK_API_KEY`  | none             | Needed for `deepseek/` models                                                           |
-| `KIVO_MODEL`        | `openai/gpt-5`   | Model as `provider/model`, e.g. `anthropic/claude-sonnet-4-5`. A bare name means OpenAI |
-| `KIVO_REASONING`    | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high` or `xhigh`                        |
+| `KIVO_MODEL`        | `openai/gpt-5`   | Model as `provider/model`, e.g. `anthropic/claude-sonnet-5-5`. A bare name means OpenAI |
+| `KIVO_REASONING`    | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max`                 |                        |
 | `DEBUG`             | off              | Set to `1` to show token usage for every step                                           |
 
 Flags and session commands override these, see [Choosing a model](#choosing-a-model).
@@ -83,7 +83,7 @@ Models are written as `provider/model`:
 | Provider  | Example                       | Key                 |
 | --------- | ----------------------------- | ------------------- |
 | OpenAI    | `openai/gpt-5`                | `OPENAI_API_KEY`    |
-| Anthropic | `anthropic/claude-sonnet-4-5` | `ANTHROPIC_API_KEY` |
+| Anthropic | `anthropic/claude-sonnet-5-5` | `ANTHROPIC_API_KEY` |
 | DeepSeek  | `deepseek/deepseek-chat`      | `DEEPSEEK_API_KEY`  |
 
 The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-5`, the provider's own reasoning default).
@@ -91,7 +91,7 @@ The model and reasoning effort come from, in order: the `--model` / `--reasoning
 In a session, `/model` and `/reasoning` show the current setting, and with an argument they switch it for the next prompt:
 
 ```
-/model anthropic/claude-sonnet-4-5
+/model anthropic/claude-sonnet-5-5
 /reasoning low
 ```
 
