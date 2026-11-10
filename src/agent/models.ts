@@ -1,4 +1,4 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { type AnthropicLanguageModelOptions, anthropic } from "@ai-sdk/anthropic";
 import { deepseek } from "@ai-sdk/deepseek";
 import { openai } from "@ai-sdk/openai";
 import type { JSONValue, LanguageModel } from "ai";
@@ -23,7 +23,11 @@ const providers: Record<string, Provider> = {
         label: "Anthropic",
         keyEnv: "ANTHROPIC_API_KEY",
         reasoningTag: "anthropic",
-        callOptions: { anthropic: { cacheControl: { type: "ephermal" } } },
+        callOptions: {
+            anthropic: {
+                cacheControl: { type: "ephemeral" },
+            } satisfies AnthropicLanguageModelOptions,
+        },
         create: (id) => anthropic(id),
     },
     deepseek: {
