@@ -14,8 +14,8 @@ const USAGE = `
 
  Options:
    -m, --model <name>       model to use, as provider/model, e.g.
-                            openai/gpt-5, anthropic/claude-sonnet-4-5,
-                            google/gemini-2.5-pro
+                            openai/gpt-5, anthropic/claude-sonnet-5-5,
+                            deepseek/deepseek-chat
                             (default openai/gpt-5, or KIVO_MODEL)
    -r, --reasoning <level>  reasoning effort: default, none, minimal,
                             low, medium, high, xhigh, max
@@ -26,7 +26,7 @@ const USAGE = `
  API keys (only the one for your model's provider is needed):
    openai      OPENAI_API_KEY
    anthropic   ANTHROPIC_API_KEY
-   google      GOOGLE_GENERATIVE_AI_API_KEY
+   deepseek    DEEPSEEK_API_KEY
 
  In a session, /model and /reasoning switch these. /help lists
  all commands.
@@ -67,20 +67,19 @@ function readModelSettings() {
 const modelSettings = readModelSettings();
 
 const { keyEnv } = modelSettings.model.provider;
-
 if (!process.env[keyEnv]) {
     fatal(
         `no ${keyEnv} found (needed for ${modelSettings.model.name}).`,
         `
-    Set it for this shell:
-      export ${keyEnv}="..."
+ Set it for this shell:
+   export ${keyEnv}="..."
 
-    Make it permanent:
-      echo 'export ${keyEnv}="..."' >> ~/.zshrc   # or ~/.bashrc
+ Make it permanent:
+   echo 'export ${keyEnv}="..."' >> ~/.zshrc   # or ~/.bashrc
 
-    Or create a .env file in the folder you run kivo from:
-      ${keyEnv}=...
-   `,
+ Or create a .env file in the folder you run kivo from:
+   ${keyEnv}=...
+`,
     );
 }
 
