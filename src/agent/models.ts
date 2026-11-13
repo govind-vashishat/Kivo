@@ -38,8 +38,9 @@ const providers: Record<string, Provider> = {
     },
 };
 
-// Models -
+export const providerNames = Object.keys(providers);
 
+// Models -
 export interface Model {
     name: string;
     id: string;
