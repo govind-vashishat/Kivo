@@ -278,7 +278,7 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
             void run(initialTask).then(() => exit());
             return;
         }
-        loadCatalog().then(setCatalog, () => setCatalog("failed"));
+        loadCatalog().then(setCatalog, (err) => setCatalog({ error: describeError(err) }));
     }, []);
 
     return (
