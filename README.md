@@ -88,14 +88,16 @@ Models are written as `provider/model`:
 
 The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-5`, the provider's own reasoning default).
 
-In a session, `/model` and `/reasoning` show the current setting, and with an argument they switch it for the next prompt:
+In a session, `/model` on its own opens a list of models to pick from. Type to filter it, move with the arrow keys, press Enter to switch or Esc to cancel. Each row shows the model's context window and its price per million input and output tokens. The list comes from [models.dev](https://models.dev) and only includes models that can call tools, because Kivo needs them.
+
+With an argument, `/model` switches straight away, and `/reasoning` sets the reasoning effort (on its own it shows the current one):
 
 ```
 /model anthropic/claude-sonnet-5-5
 /reasoning low
 ```
 
-The conversation carries over when you switch, including to a different provider. If the new provider's key isn't set, Kivo stays on the current model and tells you which variable is missing. The status line under the input always shows what's active. Model names aren't checked ahead of time, so a typo shows up as an error from the provider on your next prompt.
+The conversation carries over when you switch, including to a different provider. If the new provider's key isn't set, Kivo stays on the current model and tells you which variable is missing. The status line under the input always shows what's active. A name that isn't on the models.dev list is still used, with a note, since the list can lag behind a new release; a real typo shows up as an error from the provider on your next prompt.
 
 Each provider supports reasoning effort differently. DeepSeek, for example, only has low, high and max, so the levels in between are rounded to the nearest one.
 
@@ -111,7 +113,7 @@ Shell commands run without a terminal: they get no input, most tools are told to
 
 | Command              | Description                      |
 | -------------------- | -------------------------------- |
-| `/model [name]`      | Show or switch the model         |
+| `/model [name]`      | Pick a model, or switch directly |
 | `/reasoning [level]` | Show or set the reasoning effort |
 | `/auto`              | Turn auto-approve on or off      |
 | `/clear`             | Reset the conversation           |
@@ -186,6 +188,7 @@ src/
   agent/
     loop.ts        runAgent: the agent loop and system prompt
     models.ts      providers, their API keys, model and reasoning settings
+    catalog.ts     model list from models.dev: context windows and prices
     tools.ts       tool definitions, executor, approval requests
     readonly.ts    which shell commands can run without asking
     context.ts     ContextManager: conversation state
@@ -196,6 +199,7 @@ src/
     ui/            terminal UI built with Ink (React for the terminal)
       App.tsx      state, keyboard, agent events
       views.tsx    transcript items, tool lines, approval prompt, input
+      ModelPicker.tsx  the /model list
       DiffView.tsx diffs with line numbers
       Banner.tsx   logo and header
       theme.ts     colours
