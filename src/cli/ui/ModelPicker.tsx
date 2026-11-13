@@ -3,7 +3,8 @@ import type { CatalogModel } from "../../agent/catalog";
 import { theme } from "./theme";
 
 // What the picker shows while models.dev hasn't answered, or after it failed
-export type CatalogState = CatalogModel[] | "loading" | "failed";
+// The list, or "loading" while models.dev hasn't answered, or why it failed
+export type CatalogState = CatalogModel[] | "loading" | { error: string };
 
 const VISIBLE_ROWS = 8;
 
@@ -62,10 +63,11 @@ export function ModelPicker({
             {catalog === "loading" && (
                 <Text color={theme.mute}>loading models from models.dev…</Text>
             )}
-            {catalog === "failed" && (
-                <Text color={theme.mute}>
-                    couldn't load the list from models.dev, type a name and press enter
-                </Text>
+            {!Array.isArray(catalog) && catalog !== "loading" && (
+                <Box flexDirection="column">
+                    <Text color={theme.del}>couldn't load the list: {catalog.error}</Text>
+                    <Text color={theme.mute}>type a model name and press enter</Text>
+                </Box>
             )}
             {Array.isArray(catalog) && matches.length === 0 && (
                 <Text color={theme.mute}>

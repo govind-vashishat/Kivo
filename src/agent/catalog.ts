@@ -40,13 +40,18 @@ const ProviderEntry = z.object({ models: z.record(z.string(), z.unknown()) });
 export async function loadCatalog(): Promise<CatalogModel[]> {
     const res = await fetch(CATALOG_URL, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`models.dev answered ${res.status}`);
-    const data = z.record(z.string(), z.unknown()).parse(await res.json());
+    // .parse() would throw zod's multi-line JSON; prettifyError gives one readable line
+    const parsed = z.record(z.string(), z.unknown()).safeParse(await res.json());
+    if (!parsed.success) {
+        throw new Error(`unexpected data from models.dev: ${z.prettifyError(parsed.error)}`);
+    }
+    const data = parsed.data;
 
     return providerNames.flatMap((provider) => {
-        const parsed = ProviderEntry.safeParse(data[provider]);
-        if (!parsed.success) return [];
+        const entry = ProviderEntry.safeParse(data[provider]);
+        if (!entry.success) return [];
 
-        const entries = Object.values(parsed.data.models)
+        const entries = Object.values(entry.data.models)
             .map((m) => Entry.safeParse(m))
             .flatMap((r) => (r.success && r.data.tool_call ? [r.data] : []))
             .sort((a, b) => (b.release_date ?? "").localeCompare(a.release_date ?? ""));
