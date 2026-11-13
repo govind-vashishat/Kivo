@@ -1,14 +1,16 @@
-import { render, Static, useApp, useInput } from "ink";
+import { type Key, render, Static, useApp, useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
+import { loadCatalog } from "../../agent/catalog";
 import { ContextManager } from "../../agent/context";
 import type { AgentEvent } from "../../agent/events";
 import { runAgent } from "../../agent/loop";
-import { findModel, findReasoning, type ModelSettings } from "../../agent/models";
+import { findModel, findReasoning, type Model, type ModelSettings } from "../../agent/models";
 import type { ApprovalRequest } from "../../agent/tools";
 import { describeError } from "../render";
+import { type CatalogState, filterModels, ModelPicker } from "./ModelPicker";
 import { ApprovalPrompt, Input, type Item, ItemView, Spinner, ToolLine } from "./views";
 
-const HELP = ` /model [name]        show or switch the model, e.g. /model openai/gpt-5-mini
+const HELP = ` /model [name]        pick a model from a list, or switch directly, e.g. /model openai/gpt-5-mini
  /reasoning [level]   show or set reasoning: default, none, minimal, low, medium, high, xhigh, max
  /auto                turn auto-approve on or off
  /clear               start a fresh conversation
@@ -35,6 +37,8 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
     const [draft, setDraft] = useState("");
     const [auto, setAuto] = useState(autoApprove);
     const [settings, setSettings] = useState(modelSettings);
+    const [catalog, setCatalog] = useState<CatalogState>("loading");
+    const [picker, setPicker] = useState<{ query: string; index: number } | null>(null);
 
     const context = useRef(new ContextManager()); // one conversation per session
     const toolStarts = useRef(new Map<string, { name: string; input: unknown }>());
@@ -53,6 +57,9 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
     ].join(" ");
 
     const add = (item: Item) => setItems((prev) => [...prev, item]);
+
+    // The picker's rows for what's typed so far; both the view and the keys read this
+    const matches = picker && Array.isArray(catalog) ? filterModels(catalog, picker.query) : [];
 
     // Agent events -> transcript items
     const onEvent = (e: AgentEvent) => {
@@ -138,21 +145,56 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
         }
     };
 
+    // `/model` alone opens the picker; `/model name` switches straight away
     const switchModel = (arg: string) => {
-        if (!arg) return add({ kind: "info", text: `model: ${settings.model.name}` });
+        if (!arg) return setPicker({ query: "", index: 0 });
         try {
-            const model = findModel(arg);
-            const { keyEnv } = model.provider;
-            if (!process.env[keyEnv]) {
-                return add({
-                    kind: "error",
-                    text: `${keyEnv} isn't set, staying on ${settings.model.name}. Set it and restart kivo.`,
-                });
-            }
-            setSettings((s) => ({ ...s, model }));
-            add({ kind: "info", text: `model set to ${model.name}` });
+            applyModel(findModel(arg));
         } catch (err) {
             add({ kind: "error", text: describeError(err) });
+        }
+    };
+
+    // The one place a model gets switched, from the picker or from a typed name
+    const applyModel = (model: Model) => {
+        const { keyEnv } = model.provider;
+        if (!process.env[keyEnv]) {
+            return add({
+                kind: "error",
+                text: `${keyEnv} isn't set, staying on ${settings.model.name}. Set it and restart kivo.`,
+            });
+        }
+        setSettings((s) => ({ ...s, model }));
+        add({ kind: "info", text: `model set to ${model.name}` });
+
+        // A name models.dev doesn't know is still accepted: the list can lag behind a release
+        if (Array.isArray(catalog) && !catalog.some((m) => m.model.name === model.name)) {
+            add({
+                kind: "info",
+                text: `note: ${model.name} isn't in the models.dev list, check the name if the next prompt fails`,
+            });
+        }
+    };
+
+    // Keys while the picker is open
+    const pickerKey = (p: { query: string; index: number }, input: string, key: Key) => {
+        if (key.escape) return setPicker(null);
+        if (key.return) {
+            setPicker(null);
+            const picked = matches[p.index];
+            if (picked) return applyModel(picked.model);
+            if (p.query.trim()) return switchModel(p.query.trim()); // no match: use it as typed
+            return;
+        }
+        if (key.upArrow) return setPicker({ ...p, index: Math.max(0, p.index - 1) });
+        if (key.downArrow) {
+            return setPicker({ ...p, index: Math.min(matches.length - 1, p.index + 1) });
+        }
+        // Typing changes the list, so the highlight goes back to the top
+        if (key.backspace || key.delete)
+            return setPicker({ query: p.query.slice(0, -1), index: 0 });
+        if (input && !key.ctrl && !key.meta && !key.tab) {
+            setPicker({ query: p.query + input, index: 0 });
         }
     };
 
@@ -213,6 +255,7 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
                 }
                 return;
             }
+            if (picker) return pickerKey(picker, input, key);
             if (busy || initialTask) return; // agent is working: ignore typing
 
             if (key.return) {
@@ -227,10 +270,15 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
         { isActive: Boolean(process.stdin.isTTY) }, // e.g. `kivo --yes "..."` in a script
     );
 
-    // One-shot mode: run the task once on start, then quit
+    // One-shot mode: run the task once on start, then quit.
+    // Otherwise fetch the model list now, so the picker is ready when /model is typed.
     // biome-ignore lint/correctness/useExhaustiveDependencies: must run exactly once, on mount
     useEffect(() => {
-        if (initialTask) void run(initialTask).then(() => exit());
+        if (initialTask) {
+            void run(initialTask).then(() => exit());
+            return;
+        }
+        loadCatalog().then(setCatalog, () => setCatalog("failed"));
     }, []);
 
     return (
@@ -244,7 +292,15 @@ export function App({ initialTask, autoApprove = false, modelSettings }: AppProp
                 <ToolLine name={running.name} input={running.input} running />
             ) : busy ? (
                 <Spinner label="thinking" />
-            ) : initialTask ? null : (
+            ) : initialTask ? null : picker ? (
+                <ModelPicker
+                    catalog={catalog}
+                    matches={matches}
+                    query={picker.query}
+                    index={picker.index}
+                    current={settings.model.name}
+                />
+            ) : (
                 <Input value={draft} status={status} />
             )}
         </>
