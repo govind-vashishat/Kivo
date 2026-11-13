@@ -40,7 +40,7 @@ const ProviderEntry = z.object({ models: z.record(z.string(), z.unknown()) });
 export async function loadCatalog(): Promise<CatalogModel[]> {
     const res = await fetch(CATALOG_URL, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`models.dev answered ${res.status}`);
-    const data = z.record(z.string(), z.unknown()).parse(await res.json);
+    const data = z.record(z.string(), z.unknown()).parse(await res.json());
 
     return providerNames.flatMap((provider) => {
         const parsed = ProviderEntry.safeParse(data[provider]);
