@@ -6,7 +6,7 @@ const CATALOG_URL = "https://models.dev/api.json";
 export interface CatalogModel {
     model: Model;
     title: string;
-    contexWindow?: number;
+    contextWindow?: number;
     price?: Price;
     deprecated: boolean;
 }
@@ -55,7 +55,7 @@ export async function loadCatalog(): Promise<CatalogModel[]> {
             (m): CatalogModel => ({
                 model: findModel(`${provider}/${m.id}`),
                 title: m.name,
-                contexWindow: m.limit?.context,
+                contextWindow: m.limit?.context,
                 price: m.cost && {
                     input: m.cost.input,
                     output: m.cost.output,
