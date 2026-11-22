@@ -26,6 +26,7 @@ export interface RunOptions {
 export interface TurnUsage {
     inputTokens: number;
     cachedInputTokens: number;
+    cacheWriteTokens: number;
     outputTokens: number;
     reasoningTokens: number;
 }
@@ -85,6 +86,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         const turn: TurnUsage = {
             inputTokens: result.usage.inputTokens ?? 0,
             cachedInputTokens: result.usage.inputTokenDetails.cacheReadTokens ?? 0,
+            cacheWriteTokens: result.usage.inputTokenDetails.cacheWriteTokens ?? 0,
             outputTokens: result.usage.outputTokens ?? 0,
             reasoningTokens: result.usage.outputTokenDetails.reasoningTokens ?? 0,
         };

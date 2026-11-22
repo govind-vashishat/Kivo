@@ -7,6 +7,7 @@ export type AgentEvent =
           step: number;
           inputTokens: number;
           cachedInputTokens: number;
+          cacheWriteTokens: number;
           outputTokens: number;
           reasoningTokens: number;
       }
