@@ -3,9 +3,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { $ } from "bun";
+import { loadCatalog, type Price } from "../src/agent/catalog";
 import { type CompactSettings, compactSettings } from "../src/agent/compaction";
-import { runAgent } from "../src/agent/loop";
-import { renderEvent } from "../src/cli/render";
+import { costOf } from "../src/agent/cost";
+import type { AgentEventListener } from "../src/agent/events";
+import { runAgent, type TurnUsage } from "../src/agent/loop";
+import { loadModelSettings, type Model, type ModelSettings } from "../src/agent/models";
+import { describeError, renderEvent } from "../src/cli/render";
 
 const SANDBOX_DIR = path.resolve(import.meta.dir, "sandboxes");
 const HISTORY_FILE = path.resolve(import.meta.dir, "eval_history.json");
@@ -17,25 +21,75 @@ interface TaskManifest {
     maxSteps: number;
 }
 
+type Status = "pass" | "fail" | "error";
+
 interface EvalRecord {
     timestamp: string;
     taskId: string;
     model: string;
     reasoning: string;
     gitCommit: string;
-    pass: boolean;
+    status: Status;
+    error?: string;
     steps: number;
     stopReason: string;
     durationMs: number;
     peakInputTokens: number;
     totalInputTokens: number;
     totalCachedInputTokens: number;
+    totalCacheWriteTokens: number;
     totalOutputTokens: number;
+    editCalls: number;
+    failedEdits: number;
+    costUsd: number | null;
     compaction: string;
     compactions: number;
 }
 
-async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalRecord> {
+interface Setup {
+    settings: ModelSettings;
+    price?: Price;
+    gitCommit: string;
+}
+
+interface RunStats {
+    usage: TurnUsage[];
+    editCalls: number;
+    failedEdits: number;
+    compactions: number;
+}
+
+function trackRun(forward?: AgentEventListener) {
+    const stats: RunStats = { usage: [], editCalls: 0, failedEdits: 0, compactions: 0 };
+    const editIds = new Set<string>();
+
+    const onEvent: AgentEventListener = (event) => {
+        forward?.(event);
+        switch (event.type) {
+            case "usage": {
+                const { type, step, ...turn } = event;
+                stats.usage.push(turn);
+                break;
+            }
+            case "tool_start":
+                if (event.name === "edit_file") {
+                    stats.editCalls += 1;
+                    editIds.add(event.id);
+                }
+                break;
+            case "tool_result":
+                if (event.isError && editIds.has(event.id)) stats.failedEdits += 1;
+                break;
+            case "compaction":
+                stats.compactions += 1;
+                break;
+        }
+    };
+
+    return { stats, onEvent };
+}
+
+async function runOneTask(sandboxName: string, setup: Setup): Promise<EvalRecord> {
     const sourceDir = path.join(SANDBOX_DIR, sandboxName);
     const manifest: TaskManifest = JSON.parse(
         await readFile(path.join(sourceDir, "task.json"), "utf-8"),
@@ -45,68 +99,67 @@ async function runOneTask(sandboxName: string, gitCommit: string): Promise<EvalR
     await cp(sourceDir, workDir, { recursive: true });
 
     const start = Date.now();
+    const { stats, onEvent } = trackRun(process.env.DEBUG ? renderEvent : undefined);
 
-    let model = "unknown";
-    let reasoning = "unknown";
     let stopReason = "error";
-    let steps = 0;
-    let peakInputTokens = 0;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalCachedInputTokens = 0;
-    let compaction = describeCompaction(compactSettings());
-    let compactions = 0;
-
+    let error: string | undefined;
     try {
         const result = await runAgent({
             task: manifest.prompt,
             cwd: workDir,
             maxSteps: manifest.maxSteps,
-            onEvent: process.env.DEBUG ? renderEvent : undefined,
+            modelSettings: setup.settings,
+            onEvent,
         });
-
-        model = result.model;
-        reasoning = result.reasoning;
         stopReason = result.stopReason;
-        steps = result.steps;
-        peakInputTokens = Math.max(0, ...result.usage.map((u) => u.inputTokens));
-        totalInputTokens = result.usage.reduce((sum, u) => sum + u.inputTokens, 0);
-        totalOutputTokens = result.usage.reduce((sum, u) => sum + u.outputTokens, 0);
-        totalCachedInputTokens = result.usage.reduce((sum, n) => sum + n.cachedInputTokens, 0);
-        compaction = describeCompaction(result.compaction);
-        compactions = result.compaction.count;
     } catch (err) {
-        console.error(`  agent threw on ${manifest.id}:`, err);
+        error = describeError(err, setup.settings.model);
     }
 
-    await cp(path.join(sourceDir, "test.js"), path.join(workDir, "test.js"));
-    let pass = false;
-    try {
+    let status: Status = "error";
+    if (error === undefined) {
+        await cp(path.join(sourceDir, "test.js"), path.join(workDir, "test.js"));
         const res = await $`${{ raw: manifest.verifyCommand }}`.cwd(workDir).nothrow().quiet();
-        pass = res.exitCode === 0;
-    } catch {
-        pass = false;
+        status = res.exitCode === 0 ? "pass" : "fail";
     }
 
     await rm(workDir, { recursive: true, force: true });
 
+    const { usage } = stats;
     return {
         timestamp: new Date().toISOString(),
         taskId: manifest.id,
-        model,
-        reasoning,
-        gitCommit,
-        pass,
-        steps,
+        model: setup.settings.model.name,
+        reasoning: setup.settings.reasoning,
+        gitCommit: setup.gitCommit,
+        status,
+        error,
+        steps: usage.length,
         stopReason,
         durationMs: Date.now() - start,
-        peakInputTokens,
-        totalInputTokens,
-        totalCachedInputTokens,
-        totalOutputTokens,
-        compaction,
-        compactions,
+        peakInputTokens: Math.max(0, ...usage.map((u) => u.inputTokens)),
+        totalInputTokens: sum(usage.map((u) => u.inputTokens)),
+        totalCachedInputTokens: sum(usage.map((u) => u.cachedInputTokens)),
+        totalCacheWriteTokens: sum(usage.map((u) => u.cacheWriteTokens)),
+        totalOutputTokens: sum(usage.map((u) => u.outputTokens)),
+        editCalls: stats.editCalls,
+        failedEdits: stats.failedEdits,
+        costUsd: setup.price ? costOf(usage, setup.price) : null,
+        compaction: describeCompaction(compactSettings()),
+        compactions: stats.compactions,
     };
+}
+
+async function findPrice(model: Model): Promise<Price | undefined> {
+    try {
+        const catalog = await loadCatalog();
+        const price = catalog.find((entry) => entry.model.name === model.name)?.price;
+        if (!price) console.warn(`No price for ${model.name} on models.dev, cost will show n/a`);
+        return price;
+    } catch (err) {
+        console.warn(`Couldn't load prices from models.dev (${describeError(err)}), cost n/a`);
+        return undefined;
+    }
 }
 
 function describeCompaction(settings: CompactSettings): string {
@@ -114,8 +167,61 @@ function describeCompaction(settings: CompactSettings): string {
     return `clear@${settings.clearAt} keep${settings.keepTokens}`;
 }
 
-function mean(values: number[]) {
-    return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+function sum(values: number[]) {
+    return values.reduce((total, v) => total + v, 0);
+}
+
+const tokens = (n: number) => String(Math.round(n));
+const dollars = (n: number) => `$${n.toFixed(4)}`;
+const oneDecimal = (n: number) => n.toFixed(1);
+
+// "mean (min–max)", the shape every summary number is printed in.
+function spread(values: number[], format: (n: number) => string): string {
+    const mean = sum(values) / values.length;
+    return `${format(mean)} (${format(Math.min(...values))}–${format(Math.max(...values))})`;
+}
+
+function describeRun(r: EvalRecord): string {
+    const cost = r.costUsd === null ? "cost n/a" : dollars(r.costUsd);
+    if (r.status === "error") {
+        return `ERROR  ${r.error} (after ${r.steps} steps, ${cost})`;
+    }
+    return `${r.status.toUpperCase()}  (${r.steps} steps, peak ${r.peakInputTokens} tok, total ${r.totalInputTokens} tok, out ${r.totalOutputTokens}, cached ${r.totalCachedInputTokens}, failed edits ${r.failedEdits}/${r.editCalls}, ${cost}) compactions ${r.compactions}`;
+}
+
+function summarize(results: EvalRecord[]): string {
+    const done = results.filter((r) => r.status !== "error");
+    const errors = results.length - done.length;
+    const errorNote = errors > 0 ? `, ${errors} error${errors > 1 ? "s" : ""} not counted` : "";
+    if (done.length === 0) return `  => no finished runs${errorNote}`;
+
+    const passed = done.filter((r) => r.status === "pass").length;
+    const costs = done.flatMap((r) => (r.costUsd === null ? [] : [r.costUsd]));
+    const parts = [
+        `pass ${passed}/${done.length}${errorNote}`,
+        `cost ${costs.length === done.length ? spread(costs, dollars) : "n/a"}`,
+        `fresh ${spread(
+            done.map((r) => r.totalInputTokens - r.totalCachedInputTokens),
+            tokens,
+        )}`,
+        `out ${spread(
+            done.map((r) => r.totalOutputTokens),
+            tokens,
+        )}`,
+        `failed edits ${spread(
+            done.map((r) => r.failedEdits),
+            oneDecimal,
+        )}`,
+        `total ${spread(
+            done.map((r) => r.totalInputTokens),
+            tokens,
+        )}`,
+        `peak ${spread(
+            done.map((r) => r.peakInputTokens),
+            tokens,
+        )}`,
+    ];
+    return `  => ${parts.join(", ")}`;
 }
 
 async function main() {
@@ -135,45 +241,38 @@ async function main() {
         .filter((name) => !sandboxFilter || name.includes(sandboxFilter))
         .sort();
 
-    const gitCommit = (await $`git rev-parse --short HEAD`.nothrow().quiet().text()).trim();
+    const settings = loadModelSettings();
+    const setup: Setup = {
+        settings,
+        price: await findPrice(settings.model),
+        gitCommit: (await $`git rev-parse --short HEAD`.nothrow().quiet().text()).trim(),
+    };
+    console.log(
+        `Model: ${settings.model.name} (reasoning ${settings.reasoning}), commit ${setup.gitCommit}\n`,
+    );
 
     const records: EvalRecord[] = [];
     for (const name of sandboxes) {
         const results: EvalRecord[] = [];
         for (let i = 1; i <= runs; i++) {
             process.stdout.write(`Running ${name} (${i}/${runs})... `);
-            const record = await runOneTask(name, gitCommit);
-            console.log(
-                `${record.pass ? "PASS" : "FAIL"}  (${record.steps} steps, peak ${record.peakInputTokens} tok, total ${record.totalInputTokens} tok, out ${record.totalOutputTokens}, cached ${record.totalCachedInputTokens}) compactions ${record.compactions}`,
-            );
+            const record = await runOneTask(name, setup);
+            console.log(describeRun(record));
             results.push(record);
         }
         records.push(...results);
-
-        if (runs > 1) {
-            const passed = results.filter((r) => r.pass).length;
-            const totals = results.map((r) => r.totalInputTokens);
-            const peaks = results.map((r) => r.peakInputTokens);
-            const outputs = results.map((r) => r.totalOutputTokens);
-            const fresh = results.map((r) => r.totalInputTokens - r.totalCachedInputTokens);
-            console.log(
-                `  => pass ${passed}/${runs}, total ${mean(totals)} (${Math.min(...totals)}–${Math.max(...totals)}), peak ${mean(peaks)} (${Math.min(...peaks)}–${Math.max(...peaks)}), fresh ${mean(fresh)} (${Math.min(...fresh)}–${Math.max(...fresh)}), out ${mean(outputs)} (${Math.min(...outputs)}–${Math.max(...outputs)})\n`,
-            );
-        }
+        if (runs > 1) console.log(`${summarize(results)}\n`);
     }
 
-    const passed = records.filter((r) => r.pass).length;
-    console.log(
-        `\nAccuracy: ${passed}/${records.length} (${((passed / records.length) * 100).toFixed(0)}%)`,
-    );
+    const done = records.filter((r) => r.status !== "error");
+    const passed = done.filter((r) => r.status === "pass").length;
+    const errors = records.length - done.length;
+    const rate = done.length > 0 ? `${((passed / done.length) * 100).toFixed(0)}%` : "n/a";
+    console.log(`\nAccuracy: ${passed}/${done.length} (${rate})`);
+    if (errors > 0) console.log(`Errors: ${errors} (not counted in accuracy)`);
 
-    const suiteTokens = records.reduce((sum, r) => sum + r.totalInputTokens, 0);
-    console.log(`Total input tokens: ${suiteTokens}`);
-    if (records[0]) {
-        console.log(
-            `Model: ${records[0].model} (reasoning ${records[0].reasoning}), commit ${gitCommit}`,
-        );
-    }
+    const spent = setup.price ? dollars(sum(records.map((r) => r.costUsd ?? 0))) : "n/a";
+    console.log(`Cost: ${spent} for ${records.length} runs`);
 
     let history: EvalRecord[] = [];
     try {
