@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { tool } from "ai";
 import z from "zod";
 import { isReadOnlyCommand } from "./readonly";
@@ -48,24 +49,45 @@ export type ToolName = keyof typeof toolDefinitions;
 
 export const COMMAND_TIMEOUT_MINUTES = 5;
 
+function projectPath(cwd: string, path: string): string | null {
+    const full = resolve(cwd, path);
+    const roots = [resolve(cwd), realpathSync(cwd)];
+    return roots.some((root) => isInside(root, full)) ? full : null;
+}
+
+function isInside(root: string, full: string): boolean {
+    const rel = relative(root, full);
+    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+function outsideProject(path: string) {
+    return {
+        output: `${path} is outside the project folder. Use a path relative to the project folder, e.g. src/index.ts.`,
+        isError: true,
+    };
+}
+
 //Tool executor -
 export async function executeTool(name: ToolName, input: any, cwd: string) {
     try {
         switch (name) {
             case "read_file": {
-                const path = resolve(cwd, input.path);
+                const path = projectPath(cwd, input.path);
+                if (!path) return outsideProject(input.path);
                 const content = await Bun.file(path).text();
                 return { output: content, isError: false };
             }
 
             case "write_file": {
-                const path = resolve(cwd, input.path);
+                const path = projectPath(cwd, input.path);
+                if (!path) return outsideProject(input.path);
                 await Bun.write(path, input.content);
                 return { output: `Wrote ${input.path}`, isError: false };
             }
 
             case "edit_file": {
-                const path = resolve(cwd, input.path);
+                const path = projectPath(cwd, input.path);
+                if (!path) return outsideProject(input.path);
                 const original = await Bun.file(path).text();
 
                 const count = original.split(input.old_text).length - 1;
@@ -145,13 +167,17 @@ export async function describeChange(
 ): Promise<ApprovalRequest | null> {
     switch (name) {
         case "write_file": {
-            const file = Bun.file(resolve(cwd, input.path));
+            const path = projectPath(cwd, input.path);
+            if (!path) return null;
+            const file = Bun.file(path);
             const before = (await file.exists()) ? await file.text() : "";
             return { tool: name, path: input.path, before, after: input.content };
         }
 
         case "edit_file": {
-            const file = Bun.file(resolve(cwd, input.path));
+            const path = projectPath(cwd, input.path);
+            if (!path) return null;
+            const file = Bun.file(path);
             if (!(await file.exists())) return null;
 
             const before = await file.text();
