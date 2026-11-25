@@ -113,18 +113,17 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
                 id: call.toolCallId,
             });
 
-            const request = opts.approve
-                ? await describeChange(call.toolName as ToolName, call.input, cwd)
-                : null;
+            if (call.invalid) {
+                emit({
+                    type: "tool_result",
+                    id: call.toolCallId,
+                    output: errorMessage(call.error),
+                    isError: true,
+                });
+                continue;
+            }
 
-            const approved = request && opts.approve ? await opts.approve(request) : true;
-
-            const { output, isError } = approved
-                ? await executeTool(call.toolName as ToolName, call.input, cwd)
-                : {
-                      output: "The user rejected this action. Ask them what they want instead.",
-                      isError: true,
-                  };
+            const { output, isError } = await runToolCall(call, cwd, opts.approve);
 
             emit({
                 type: "tool_result",
@@ -154,4 +153,29 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         }
     }
     return done("max_steps", maxSteps);
+}
+
+async function runToolCall(
+    call: { toolName: string; input: unknown },
+    cwd: string,
+    approve: RunOptions["approve"],
+): Promise<{ output: string; isError: boolean }> {
+    const name = call.toolName as ToolName;
+    try {
+        const request = approve ? await describeChange(name, call.input, cwd) : null;
+        const approved = request && approve ? await approve(request) : true;
+        if (!approved) {
+            return {
+                output: "The user rejected this action. Ask them what they want instead.",
+                isError: true,
+            };
+        }
+        return await executeTool(name, call.input, cwd);
+    } catch (err) {
+        return { output: errorMessage(err), isError: true };
+    }
+}
+
+function errorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
 }
