@@ -4,12 +4,14 @@ import { tool } from "ai";
 import z from "zod";
 import { isReadOnlyCommand } from "./readonly";
 
+const filePath = z.string().describe("Path relative to the project folder, e.g. src/index.ts");
+
 //Tool schemas -
 export const toolDefinitions = {
     read_file: tool({
         description: "Read the full contents of a file at the given path.",
         inputSchema: z.object({
-            path: z.string().describe("Relative or absolute file path"),
+            path: filePath,
         }),
     }),
 
@@ -17,7 +19,7 @@ export const toolDefinitions = {
         description:
             "Create a file or overwrite it entirely. Use for new files; prefer edit_file for existing ones.",
         inputSchema: z.object({
-            path: z.string(),
+            path: filePath,
             content: z.string(),
         }),
     }),
@@ -26,7 +28,7 @@ export const toolDefinitions = {
         description:
             "Replace an exact snippet in an existing file. old_text must appear exactly once. Cheaper and safer than rewriting the whole file.",
         inputSchema: z.object({
-            path: z.string(),
+            path: filePath,
             old_text: z
                 .string()
                 .describe(
