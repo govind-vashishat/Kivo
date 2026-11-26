@@ -47,7 +47,7 @@ export interface Model {
     provider: Provider;
 }
 
-export const DEFAULT_MODEL = "openai/gpt-5";
+export const DEFAULT_MODEL = "openai/gpt-6-luna";
 
 export function findModel(text: string): Model {
     const trimmed = text.trim();

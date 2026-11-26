@@ -14,9 +14,9 @@ const USAGE = `
 
  Options:
    -m, --model <name>       model to use, as provider/model, e.g.
-                            openai/gpt-5, anthropic/claude-sonnet-5-5,
-                            deepseek/deepseek-chat
-                            (default openai/gpt-5, or KIVO_MODEL)
+                            openai/gpt-6-luna, anthropic/claude-sonnet-5-5,
+                            deepseek/deepseek-flash
+                            (default openai/gpt-6-luna, or KIVO_MODEL)
    -r, --reasoning <level>  reasoning effort: default, none, minimal,
                             low, medium, high, xhigh, max
                             (default: the provider's, or KIVO_REASONING)

@@ -57,7 +57,7 @@ Or put them in a `.env` file in the folder you run `kivo` from. Kivo checks at s
 | `OPENAI_API_KEY`    | none             | Needed for `openai/` models                                                             |
 | `ANTHROPIC_API_KEY` | none             | Needed for `anthropic/` models                                                          |
 | `DEEPSEEK_API_KEY`  | none             | Needed for `deepseek/` models                                                           |
-| `KIVO_MODEL`        | `openai/gpt-5`   | Model as `provider/model`, e.g. `anthropic/claude-sonnet-5-5`. A bare name means OpenAI |
+| `KIVO_MODEL`        | `openai/gpt-6-luna` | Model as `provider/model`, e.g. `anthropic/claude-sonnet-5-5`. A bare name means OpenAI | A bare name means OpenAI |
 | `KIVO_REASONING`    | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max`                 |                        |
 | `DEBUG`             | off              | Set to `1` to show token usage for every step                                           |
 
@@ -69,7 +69,7 @@ Flags and session commands override these, see [Choosing a model](#choosing-a-mo
 kivo                           # start an interactive session
 kivo "<task>"                  # run one task and exit
 kivo --yes "<task>"            # run without asking for approval (also -y)
-kivo -m deepseek/deepseek-chat # choose the model (also --model)
+kivo -m deepseek/deepseek-flash # choose the model (also --model)
 kivo -r low                    # choose the reasoning effort (also --reasoning)
 kivo --help                    # show usage
 ```
@@ -80,13 +80,11 @@ Kivo works in the current directory. Run it from the root of the project you wan
 
 Models are written as `provider/model`:
 
-| Provider  | Example                       | Key                 |
-| --------- | ----------------------------- | ------------------- |
-| OpenAI    | `openai/gpt-5`                | `OPENAI_API_KEY`    |
+| OpenAI    | `openai/gpt-6-luna`           | `OPENAI_API_KEY`    |
 | Anthropic | `anthropic/claude-sonnet-5-5` | `ANTHROPIC_API_KEY` |
-| DeepSeek  | `deepseek/deepseek-chat`      | `DEEPSEEK_API_KEY`  |
+| DeepSeek  | `deepseek/deepseek-flash`     | `DEEPSEEK_API_KEY`  |
 
-The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-5`, the provider's own reasoning default).
+The model and reasoning effort come from, in order: the `--model` / `--reasoning` flags, then `KIVO_MODEL` / `KIVO_REASONING`, then the defaults (`openai/gpt-6-luna`, the provider's own reasoning default).
 
 In a session, `/model` on its own opens a list of models to pick from. Type to filter it, move with the arrow keys, press Enter to switch or Esc to cancel. Each row shows the model's context window and its price per million input and output tokens. The list comes from [models.dev](https://models.dev) and only includes models that can call tools, because Kivo needs them.
 
