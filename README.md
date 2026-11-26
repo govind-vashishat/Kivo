@@ -215,22 +215,35 @@ evals/
 `evals/` holds small projects with known bugs. Each sandbox has a `task.json` (the prompt and a verification command) and a `test.js` that checks the fix.
 
 ```bash
-bun run eval              # every sandbox once
-bun run eval 04 --runs 3  # sandboxes matching "04", three runs each
+bun run eval                                                  # every sandbox once
+bun run eval 04 --runs 3                                      # sandboxes matching "04",three runs each
+KIVO_MODEL=anthropic/claude-haiku-5-5 bun run eval --runs 5   # another model
 ```
 
-Each sandbox is copied to a temporary folder and the agent runs on the copy. `test.js` is restored before verifying, so the agent can't pass by editing the test. Every run records pass or fail, steps, peak, total and cached input tokens, output tokens, model, reasoning effort and git commit to `evals/eval_history.json`. With `--runs`, the runner prints the mean and range per sandbox, because a single run of an agent is not a reliable number. Running the evals needs Node.js.
+Each sandbox is copied to a temporary folder and the agent runs on the copy. `test.js` is restored before verifying, so the agent can't pass by editing the test. Every run is recorded in `evals/eval_history.json` as pass, fail or error, with steps, input tokens (peak, total, cached, cache writes), output tokens, failed `edit_file` calls, cost, model, reasoning effort and git commit. Cost uses the model's prices from [models.dev](https://models.dev). A run that errors (the provider or the agent threw) is not verified and is left out of the pass rate and averages, but is still counted and costed. With `--runs`, the runner prints the mean and range per sandbox, because a single run of an agent is not a reliable number. Running the evals needs Node.js.
 
-Results with `gpt-5-mini`, low reasoning, 3 runs each:
+| Sandbox                  | Task                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `01-syntax-error`        | Fix a file that doesn't parse                                                 |
+| `02-failing-test`        | Fix an off-by-one error                                                       |
+| `03-multi-file`          | Fix wrong prices across files                                                 |
+| `04-invoice-currency`    | Trace a currency bug through a six-module invoicing system                    |
+| `05-events-pipeline`     | Find why a five-stage metrics pipeline disagrees with finance's numbers       |
+| `06-fulfillment-tickets` | Work through four tickets in an order fulfillment system without regressions |
 
-| Sandbox               | Task                                                       | Passed | Avg input tokens |
-| --------------------- | ---------------------------------------------------------- | ------ | ---------------- |
-| `01-syntax-error`     | Fix a file that doesn't parse                              | 3/3    | ~2.4k            |
-| `02-failing-test`     | Fix an off-by-one error                                    | 3/3    | ~3.0k            |
-| `03-multi-file`       | Fix wrong prices across files                              | 3/3    | ~5.8k            |
-| `04-invoice-currency` | Trace a currency bug through a six-module invoicing system | 3/3    | ~25k             |
+### Results across models
 
-Total input tokens grow with the square of the number of steps, because the whole conversation is re-sent every turn. Compaction is the next step, and these evals are how it will be judged.
+Same Kivo commit (`8da6f25`), low reasoning, 5 runs of each sandbox per model. Each figure is for one run of all six sandboxes: the sum of each sandbox's mean.
+
+| Model                        | Passed | Steps | Fresh input | Output | Failed edits | Cost   |
+| ---------------------------- | ------ | ----- | ----------- | ------ | ------------ | ------ |
+| `openai/gpt-6-luna`          | 29/29  | 42    | 39k         | 3.2k   | 0/65         | $0.008 |
+| `deepseek/deepseek-flash`    | 30/30  | 35    | 46k         | 7.6k   | 0/58         | $0.012 |
+| `anthropic/claude-haiku-5-5` | 30/30  | 28    | 66k         | 11.2k  | 0/71         | $0.017 |
+
+Fresh input is input not read from the cache. Token counts can't be compared across providers (each has its own tokenizer, and Anthropic adds a hidden tool-use prompt), so cost is the number to compare. Fewer steps doesn't mean cheaper: Haiku takes the fewest steps but reads and writes the most per step. One gpt-6-luna run on `06` ended with a request timeout and isn't counted.
+
+Before these results, the comparison found one difference: Haiku failed 12 of 88 `edit_file` calls by guessing an absolute path (`/root/src/...`). Describing file paths as relative to the project folder, in the tool schemas and the system prompt, brought that to 0 without changing the other models' results (#73).
 
 ## Roadmap
 
