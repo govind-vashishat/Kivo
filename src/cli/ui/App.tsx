@@ -10,7 +10,7 @@ import { describeError } from "../render";
 import { type CatalogState, filterModels, ModelPicker } from "./ModelPicker";
 import { ApprovalPrompt, Input, type Item, ItemView, Spinner, ToolLine } from "./views";
 
-const HELP = ` /model [name]        pick a model from a list, or switch directly, e.g. /model openai/gpt-5-mini
+const HELP = ` /model [name]        pick a model from a list, or switch directly, e.g. /model anthropic/claude-haiku-5-5
  /reasoning [level]   show or set reasoning: default, none, minimal, low, medium, high, xhigh, max
  /auto                turn auto-approve on or off
  /clear               start a fresh conversation
