@@ -132,7 +132,7 @@ async function runCommand(command: string, cwd: string) {
         stdout: "pipe",
         stderr: "pipe",
         detached: true,
-        env: { ...process.env, CI: "1", npm_config_yes: "true", NO_COLOUR: "1" },
+        env: { ...process.env, CI: "1", npm_config_yes: "true", NO_COLOR: "1" },
     });
 
     let timedOut = false;
