@@ -57,8 +57,8 @@ Or put them in a `.env` file in the folder you run `kivo` from. Kivo checks at s
 | `OPENAI_API_KEY`    | none             | Needed for `openai/` models                                                             |
 | `ANTHROPIC_API_KEY` | none             | Needed for `anthropic/` models                                                          |
 | `DEEPSEEK_API_KEY`  | none             | Needed for `deepseek/` models                                                           |
-| `KIVO_MODEL`        | `openai/gpt-6-luna` | Model as `provider/model`, e.g. `anthropic/claude-sonnet-5-5`. A bare name means OpenAI | A bare name means OpenAI |
-| `KIVO_REASONING`    | provider default | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max`                 |                        |
+| `KIVO_MODEL`        | `openai/gpt-6-luna` | Model as `provider/model`, e.g. `anthropic/claude-sonnet-5-5`. A bare name means OpenAI |
+| `KIVO_REASONING`    | provider default    | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max`                 |                 |                        |
 | `DEBUG`             | off              | Set to `1` to show token usage for every step                                           |
 
 Flags and session commands override these, see [Choosing a model](#choosing-a-model).
